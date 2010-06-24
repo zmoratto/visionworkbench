@@ -1,0 +1,21 @@
+package vw.ip;
+
+message IPMessage {
+    // Basic Properties
+    required float x = 1;
+    required float y = 2;
+    optional float scale = 3;
+
+    // Redundant
+    optional int32 ix = 4;
+    optional int32 iy = 5;
+
+    // Specifics
+    optional float orientation = 6;
+    optional float interest = 7;
+    optional bool  polarity = 8;
+    optional uint32 octave  = 9;
+    optional uint32 scale_lvl = 10;
+
+    repeated float descriptor = 11 [packed=true];
+}
