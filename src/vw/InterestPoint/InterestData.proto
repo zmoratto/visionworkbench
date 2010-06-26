@@ -17,5 +17,5 @@ message IPMessage {
     optional uint32 octave  = 9;
     optional uint32 scale_lvl = 10;
 
-    repeated float descriptor = 11 [packed=true];
+    repeated float tag = 11 [packed=true];
 }

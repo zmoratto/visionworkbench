@@ -28,15 +28,15 @@ include_HEADERS = Detector.h Descriptor.h Matcher.h Extrema.h         \
                   IntegralImage.h IntegralInterestOperator.h          \
                   IntegralDetector.h BoxFilter.h IntegralDescriptor.h
 
-libvwInterestPoint_la_SOURCES = InterestData.cc Descriptor.cc   \
-                  IntegralDetector.cc IntegralInterestOperator.cc
+libvwInterestPoint_la_SOURCES = InterestData.cc Descriptor.cc     \
+                  IntegralDetector.cc IntegralInterestOperator.cc \
+                  $(protocol_sources)
 libvwInterestPoint_la_LIBADD = @MODULE_INTERESTPOINT_LIBS@
 
 lib_LTLIBRARIES = libvwInterestPoint.la
 
 if HAVE_PKG_PROTOBUF
 include_HEADERS += InterestIO.h
-libvwInterestPoint_la_SOURCES += $(protocol_sources);
 endif
 
 endif
