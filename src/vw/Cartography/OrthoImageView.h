@@ -27,6 +27,7 @@ namespace cartography {
   /// the camera image.
   template <class TerrainImageT, class CameraImageT, class InterpT, class EdgeT>
   class OrthoImageView : public ImageViewBase<OrthoImageView<TerrainImageT, CameraImageT, InterpT, EdgeT> > {
+    typedef typename boost::mpl::if_<IsFloatingPointIndexable<TerrainImageT>, double, int32>::type offset_type;
 
     TerrainImageT m_terrain;
     CameraImageT m_camera_image_ref;
@@ -39,13 +40,13 @@ namespace cartography {
     // Provide safe interaction with DEMs that are scalar or compound
     template <class PixelT>
     typename boost::enable_if< IsScalar<PixelT>, double >::type
-    inline Helper( double const& x, double const& y ) const {
+    inline Helper( offset_type const& x, offset_type const& y ) const {
       return m_terrain(x,y);
     }
 
     template <class PixelT>
     typename boost::enable_if< IsCompound<PixelT>, double>::type
-    inline Helper( double const& x, double const& y ) const {
+      inline Helper( offset_type const& x, offset_type const& y ) const {
       return m_terrain(x,y)[0];
     }
 
@@ -76,7 +77,7 @@ namespace cartography {
     /// compute a 3D point corresponding to this location in the DTM.
     /// This point is then "imaged" by the camera model and the
     /// resulting pixel location is returned from the camera image.
-    inline result_type operator()( int32 i, int32 j, int p=0 ) const {
+    inline result_type operator()( offset_type i, offset_type j, int p=0 ) const {
 
       // We need to convert the georefernced positions into a
       // cartesian coordinate system so that they can be imaged by the
@@ -88,7 +89,9 @@ namespace cartography {
       //    converts from altitude to planetary radius.
       // 3. Convert to cartesian (xyz) coordinates.
       Vector2 lon_lat( m_georef.pixel_to_lonlat(Vector2(i,j)) );
-      Vector3 xyz = m_georef.datum().geodetic_to_cartesian( Vector3( lon_lat.x(), lon_lat.y(), Helper<typename TerrainImageT::pixel_type>(i,j) ) );
+      Vector3 xyz = m_georef.datum().geodetic_to_cartesian(
+                      Vector3( lon_lat.x(), lon_lat.y(),
+                               Helper<typename TerrainImageT::pixel_type>(i, j)));
 
       // Check for a missing DEM pixels.
       if ( is_transparent(m_terrain(i,j)) ) {
@@ -131,7 +134,9 @@ namespace cartography {
   /// \cond INTERNAL
   // Type traits
   template <class TerrainImageT, class CameraImageT, class InterpT, class EdgeT>
-  struct IsFloatingPointIndexable< cartography::OrthoImageView<TerrainImageT, CameraImageT, InterpT, EdgeT> > : public true_type {};
+  struct IsFloatingPointIndexable< cartography::OrthoImageView<TerrainImageT, CameraImageT, InterpT, EdgeT> >
+    : public IsFloatingPointIndexable<TerrainImageT> {};
+
   /// \endcond
 
 } // namespace vw
