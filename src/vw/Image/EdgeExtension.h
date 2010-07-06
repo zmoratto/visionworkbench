@@ -22,6 +22,8 @@
 ///  - \ref vw::ReflectEdgeExtension extends an image by reflecting across its edges
 ///  - \ref vw::PeriodicEdgeExtension extends an image by repeating it periodically
 ///  - \ref vw::NoEdgeExtension is a special class that can be used to represent no edge extension
+///  - \ref vw::CylindricalEdgeExtension is periodic in x, and constant in y.
+///  - \ref vw::LinearEdgeExtension extrapolates linearly
 ///
 #ifndef __VW_IMAGE_EDGEEXTENSION_H__
 #define __VW_IMAGE_EDGEEXTENSION_H__
