@@ -58,14 +58,18 @@ namespace vw {
     };
   };
 
+#define EDGE_FLOAT_FUNCOP template <class ViewT> inline typename boost::enable_if<IsFloatingPointIndexable<ViewT>,typename ViewT::pixel_type>::type operator()
+
+#define EDGE_INT_FUNCOP template <class ViewT> inline typename boost::disable_if<IsFloatingPointIndexable<ViewT>,typename ViewT::pixel_type>::type operator()
+
   /// A special type providing no edge extension.  This is mainly
   /// used as a signal to certain types to adopt fundamentally
   /// different behavior.
   struct NoEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
-      return view(i,j,p);
-    }
+    EDGE_FLOAT_FUNCOP(const ViewT &view, double i, double j, double p) const {
+      return view(i,j,p); }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
+      return view(i,j,p); }
     template <class ViewT>
     inline BBox2i source_bbox( ViewT const& /*view*/, BBox2i const& bbox ) const {
       return bbox;
@@ -75,8 +79,13 @@ namespace vw {
   /// An edge extention type that extends the image with zeroes in
   /// all directions.
   struct ZeroEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP(const ViewT &view, double i, double j, double p) const {
+      if( i>=0 && j>=0 && i<=view.cols()-1 && j<=view.rows()-1 )
+        return view(i,j,p);
+      else
+        return typename ViewT::pixel_type();
+    }
+    EDGE_INT_FUNCOP(const ViewT &view, int32 i, int32 j, int32 p ) const {
       if( i>=0 && j>=0 && i<view.cols() && j<view.rows() )
         return view(i,j,p);
       else
@@ -97,8 +106,13 @@ namespace vw {
     PixelT m_pix;
     ValueEdgeExtension(PixelT pix) : m_pix(pix) {}
 
-    template <class ViewT>
-    inline PixelT operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP( const ViewT &view, double i, double j, double p ) const {
+      if( i>=0 && j>=0 && i<=view.cols()-1 && j<=view.rows()-1 )
+        return view(i,j,p);
+      else
+        return m_pix;
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       if( i>=0 && j>=0 && i<view.cols() && j<view.rows() )
         return view(i,j,p);
       else
@@ -117,8 +131,11 @@ namespace vw {
   /// functions in all directions.  In other words, it returns the
   /// nearest valid pixel.
   struct ConstantEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP( const ViewT &view, double i, double j, double p ) const {
+      return view((i<0) ? 0 : (i>view.cols()-1) ? (view.cols()-1) : i,
+                  (j<0) ? 0 : (j>view.rows()-1) ? (view.rows()-1) : j, p);
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       return view((i<0) ? 0 : (i>=view.cols()) ? (view.cols()-1) : i,
                   (j<0) ? 0 : (j>=view.rows()) ? (view.rows()-1) : j, p);
     }
@@ -139,8 +156,14 @@ namespace vw {
 
   /// A periodic edge extension type.
   struct PeriodicEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP( const ViewT &view, double i, double j, double p ) const {
+      double d_i = std::fmod(i,view.cols());
+      if( d_i < 0 ) d_i += view.cols();
+      double d_j = std::fmod(j,view.rows());
+      if( d_j < 0 ) d_j += view.rows();
+      return view(d_i,d_j,p);
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       int32 d_i=i, d_j=j;
       d_i %= int(view.cols());
       if( d_i < 0 ) d_i += view.cols();
@@ -181,8 +204,13 @@ namespace vw {
 
   /// A cylindrical edge extension type: periodic in the x axis, constant in the y axis.
   struct CylindricalEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP( const ViewT &view, double i, double j, double p ) const {
+      double d_i = fmod(i,view.cols());
+      if( d_i < 0 ) d_i += view.cols();
+      double d_j = (j<0) ? 0 : (j>view.rows()-1) ? (view.rows()-1) : j;
+      return view(d_i,d_j,p);
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       int32 d_i=i;
       d_i %= int(view.cols());
       if( d_i < 0 ) d_i += view.cols();
@@ -216,8 +244,19 @@ namespace vw {
 
   /// A reflection edge extension type.
   struct ReflectEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP(const ViewT &view, double i, double j, double p) const {
+      double d_i=i, d_j=j;
+      if( d_i < 0 ) d_i = -d_i;
+      double vcm1 = view.cols() - 1;
+      d_i = std::fmod(d_i, 2*vcm1);
+      if( d_i > vcm1 ) d_i = 2*vcm1 - d_i;
+      if( d_j<0 ) d_j=-d_j;
+      double vrm1 = view.rows() - 1;
+      d_j = std::fmod(d_j,2*vrm1);
+      if( d_j > vrm1 ) d_j = 2*vrm1 - d_j;
+      return view(d_i,d_j,p);
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       int32 d_i=i, d_j=j;
       if( d_i < 0 ) d_i = -d_i;
       int32 vcm1 = view.cols() - 1;
@@ -280,8 +319,26 @@ namespace vw {
 
   /// A linear extrapolation edge extension type.
   struct LinearEdgeExtension : EdgeExtensionBase {
-    template <class ViewT>
-    inline typename ViewT::pixel_type operator()( const ViewT &view, int32 i, int32 j, int32 p ) const {
+    EDGE_FLOAT_FUNCOP(const ViewT &view, double i, double j, double p ) const {
+      double vcm1 = view.cols() - 1;
+      double vrm1 = view.rows() - 1;
+      if( i < 0 ) {
+        if( j < 0 ) return view(0,0,p) - i*(view(0,0,p)-view(1,0,p)) - j*(view(0,0,p)-view(0,1,p));
+        else if( j > vrm1 ) return view(0,vrm1,p) - i*(view(0,vrm1,p)-view(1,vrm1,p)) + (j-vrm1)*(view(0,vrm1,p)-view(0,vrm1-1,p));
+        else return view(0,j,p) - i*(view(0,j,p)-view(1,j,p));
+      }
+      else if( i > vcm1 ) {
+        if( j < 0 ) return view(vcm1,0,p) + (i-vcm1)*(view(vcm1,0,p)-view(vcm1-1,0,p)) - j*(view(vcm1,0,p)-view(vcm1,1,p));
+        else if( j > vrm1 ) return view(vcm1,vrm1,p) + (i-vcm1)*(view(vcm1,vrm1,p)-view(vcm1-1,vrm1,p)) + (j-vrm1)*(view(vcm1,vrm1,p)-view(vcm1,vrm1-1,p));
+        else return view(vcm1,j,p) + (i-vcm1)*(view(vcm1,j,p)-view(vcm1-1,j,p));
+      }
+      else {
+        if( j < 0 ) return view(i,0,p) - j*(view(i,0,p)-view(i,1,p));
+        else if( j > vrm1 ) return view(i,vrm1,p) + (j-vrm1)*(view(i,vrm1,p)-view(i,vrm1-1,p));
+        else return view(i,j,p);
+      }
+    }
+    EDGE_INT_FUNCOP( const ViewT &view, int32 i, int32 j, int32 p ) const {
       int32 vcm1 = view.cols() - 1;
       int32 vrm1 = view.rows() - 1;
       if( i < 0 ) {
@@ -333,8 +390,9 @@ namespace vw {
   class EdgeExtensionView : public ImageViewBase<EdgeExtensionView<ImageT,ExtensionT> >
   {
   private:
+    typedef typename boost::mpl::if_<IsFloatingPointIndexable<ImageT>, double, int32>::type offset_type;
     ImageT m_image;
-    ptrdiff_t m_xoffset, m_yoffset;
+    offset_type m_xoffset, m_yoffset;
     int32 m_cols, m_rows;
     ExtensionT m_extension_func;
   public:
@@ -349,10 +407,10 @@ namespace vw {
     EdgeExtensionView( ImageT const& image, ExtensionT const& extension )
       : m_image(image), m_xoffset(0), m_yoffset(0), m_cols(image.cols()), m_rows(image.rows()), m_extension_func(extension) {}
 
-    EdgeExtensionView( ImageT const& image, ptrdiff_t xoffset, ptrdiff_t yoffset, int32 cols, int32 rows )
+    EdgeExtensionView( ImageT const& image, offset_type xoffset, offset_type yoffset, int32 cols, int32 rows )
       : m_image(image), m_xoffset(xoffset), m_yoffset(yoffset), m_cols(cols), m_rows(rows), m_extension_func() {}
 
-    EdgeExtensionView( ImageT const& image, ptrdiff_t xoffset, ptrdiff_t yoffset, int32 cols, int32 rows, ExtensionT const& extension )
+    EdgeExtensionView( ImageT const& image, offset_type xoffset, offset_type yoffset, int32 cols, int32 rows, ExtensionT const& extension )
       : m_image(image), m_xoffset(xoffset), m_yoffset(yoffset), m_cols(cols), m_rows(rows), m_extension_func(extension) {}
 
     inline int32 cols() const { return m_cols; }
@@ -360,7 +418,7 @@ namespace vw {
     inline int32 planes() const { return m_image.planes(); }
 
     inline pixel_accessor origin() const { return pixel_accessor(*this,0,0); }
-    inline result_type operator()( int32 i, int32 j, int32 p = 0 ) const { return m_extension_func(m_image,i+m_xoffset,j+m_yoffset,p); }
+    inline result_type operator()( offset_type i, offset_type j, offset_type p = 0 ) const { return m_extension_func(m_image,i+m_xoffset,j+m_yoffset,p); }
 
     ImageT const& child() const { return m_image; }
     ExtensionT const& func() const { return m_extension_func; }
@@ -378,6 +436,10 @@ namespace vw {
     }
     template <class DestT> inline void rasterize( DestT const& dest, BBox2i bbox ) const { vw::rasterize( prerasterize(bbox), dest, bbox ); }
   };
+
+  template <class ImageT, class ExtensionT>
+  struct IsFloatingPointIndexable< EdgeExtensionView<ImageT, ExtensionT> >
+    : public IsFloatingPointIndexable<ImageT> {};
 
   template <class ImageT, class ExtensionT>
   class SparseImageCheck<EdgeExtensionView<ImageT, ExtensionT> > {
