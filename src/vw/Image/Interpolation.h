@@ -226,7 +226,12 @@ namespace vw {
 
     inline pixel_accessor origin() const { return pixel_accessor(*this, 0, 0); }
 
-    inline result_type operator() (double i, double j, int32 p = 0) const { return m_interp_func(m_image,i,j,p); }
+    inline result_type operator() (double i, double j, int32 p = 0) const {
+      if ( IsFloatingPointIndexable<ImageT>::value )
+        return m_image(i,j,p);
+      else
+        return m_interp_func(m_image,i,j,p);
+    }
 
     ImageT const& child() const { return m_image; }
     InterpT const& func() const { return m_interp_func; }
@@ -236,17 +241,17 @@ namespace vw {
     // view cannot be repeatedly accessed without incurring any
     // additional overhead  then we should rasterize the child
     // before we proceed to rasterize ourself.
-    typedef typename boost::mpl::if_< IsMultiplyAccessible<ImageT>,
+    typedef typename boost::mpl::if_< boost::mpl::or_<IsMultiplyAccessible<ImageT>, IsFloatingPointIndexable<ImageT> >,
                                       InterpolationView<typename ImageT::prerasterize_type, InterpT>,
                                       InterpolationView<CropView<ImageView<pixel_type> >, InterpT> >::type prerasterize_type;
 
     template <class PreRastImageT>
-    prerasterize_type prerasterize_helper( BBox2i bbox, PreRastImageT const& image, true_type ) const {
+    prerasterize_type prerasterize_helper( BBox2i bbox, PreRastImageT const& image, boost::mpl::bool_<true> ) const {
       return prerasterize_type( image.prerasterize(bbox) );
     }
 
     template <class PreRastImageT>
-    prerasterize_type prerasterize_helper( BBox2i bbox, PreRastImageT const& image, false_type ) const {
+    prerasterize_type prerasterize_helper( BBox2i bbox, PreRastImageT const& image, boost::mpl::bool_<false> ) const {
       ImageView<pixel_type> buf( bbox.width(), bbox.height(), m_image.planes() );
       image.rasterize( buf, bbox );
       return prerasterize_type( CropView<ImageView<pixel_type> >( buf, BBox2i(-bbox.min().x(),-bbox.min().y(),
@@ -259,7 +264,7 @@ namespace vw {
       BBox2i adjusted_bbox(bbox.min().x() - InterpT::pixel_buffer,
                            bbox.min().y() - InterpT::pixel_buffer,
                            padded_width, padded_height);
-      return prerasterize_helper(adjusted_bbox, m_image, typename IsMultiplyAccessible<ImageT>::type() );
+      return prerasterize_helper(adjusted_bbox, m_image, typename boost::mpl::or_<IsMultiplyAccessible<ImageT>, IsFloatingPointIndexable<ImageT> >::type() );
     }
 
     template <class DestT> inline void rasterize( DestT const& dest, BBox2i bbox ) const { vw::rasterize( prerasterize(bbox), dest, bbox ); }
@@ -270,6 +275,8 @@ namespace vw {
   // Type traits
   template <class ImageT, class InterpT>
   struct IsFloatingPointIndexable<InterpolationView<ImageT, InterpT> > : public true_type {};
+  template <class ImageT, class InterpT>
+    struct IsMultiplyAccessible<InterpolationView<ImageT, InterpT> > : public boost::mpl::if_<typename IsFloatingPointIndexable<ImageT>::type, IsMultiplyAccessible<ImageT>, false_type>::type {};
   /// \endcond
 
   template <class ImageT, class InterpT>
