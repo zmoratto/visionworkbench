@@ -509,6 +509,9 @@ namespace vw {
     return EdgeExtensionView<ImageT,ConstantEdgeExtension>( v.impl() );
   }
 
+#undef EDGE_FLOAT_FUNCOP
+#undef EDGE_INT_FUNCOP
+
 } // namespace vw
 
 #endif // __VW_IMAGE_EDGEEXTENSION_H__
