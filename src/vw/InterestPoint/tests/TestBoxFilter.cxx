@@ -25,7 +25,7 @@ TEST( BoxFilter, ApplyBoxFilter ) {
     }
   }
 
-  ImageView<float> integral = IntegralImage( image );
+  ImageView<float> integral = integral_image( image );
   EXPECT_EQ( 4, integral.cols() );
   EXPECT_EQ( 4, integral.rows() );
 
@@ -53,7 +53,7 @@ TEST( BoxFilter, FilterView ) {
     }
   }
   image(3,3) = 20;
-  ImageView<float> integral = IntegralImage( image );
+  ImageView<float> integral = integral_image( image );
   EXPECT_EQ( 5, integral.cols() );
   EXPECT_EQ( 5, integral.rows() );
 

@@ -18,7 +18,7 @@ TEST( Integral, IntegralSumming ) {
   ImageView<float> graffiti;
   read_image( graffiti, TEST_SRCDIR"/sub.png" );
   ImageView<double> integral;
-  integral = IntegralImage( graffiti );
+  integral = integral_image( graffiti );
 
   for (unsigned size = 10; size <= 70; size+= 10) {
     float sum = IntegralBlock( integral,
@@ -31,7 +31,7 @@ TEST( Integral, IntegralSumming ) {
       }
     }
 
-    EXPECT_NEAR(actual_sum, sum, 1e-2);
+    EXPECT_NEAR(actual_sum, sum, 1e-5);
   }
 }
 
@@ -42,7 +42,7 @@ TEST( Integral, HaarFilters ) {
   read_image( gradient, TEST_SRCDIR"/noisy_gradient_60.png" );
 
   // Building Integrals
-  ImageView<double> integral = IntegralImage( graffiti );
+  ImageView<double> integral = integral_image( graffiti );
 
   float hand_response = 0;
   for ( unsigned i = 0; i < 2; i++ ) {
@@ -88,10 +88,10 @@ TEST( Integral, HaarFilters2 ) {
 
   // Building Integrals
   ImageView<double> int_graf, int_graf_r, int_grad, int_grad_r;
-  int_graf = IntegralImage( graffiti );
-  int_graf_r = IntegralImage( graffiti_r);
-  int_grad = IntegralImage( gradient );
-  int_grad_r = IntegralImage( gradient_r );
+  int_graf = integral_image( graffiti );
+  int_graf_r = integral_image( graffiti_r);
+  int_grad = integral_image( gradient );
+  int_grad_r = integral_image( gradient_r );
 
   for ( unsigned i = 10; i < 90; i+=5 ) {
     for ( unsigned j = 10; j < 50; j+=5 ) {
@@ -174,11 +174,11 @@ TEST( Integral, DerivativeFilters ) {
   ImageView<float> graffiti;
   read_image( graffiti, TEST_SRCDIR"/sub.png" );
   ImageView<double> integral;
-  integral = IntegralImage( graffiti );
+  integral = integral_image( graffiti );
   ImageView<float> rotated;
   rotated = rotate_180(graffiti);
   ImageView<double> r_integral;
-  r_integral = IntegralImage( rotated );
+  r_integral = integral_image( rotated );
 
   EXPECT_NEAR( XSecondDerivative( integral,
                                   49, 49, 51 ),
@@ -207,11 +207,11 @@ TEST( Integral, InterpolationProof ) {
 
   // Building Integrals
   ImageView<double> integral;
-  integral = IntegralImage( gradient );
+  integral = integral_image( gradient );
 
   // Interpolation by hand from 2 filters
   float left, right;
-  left = HHaarWavelet(  integral, int(10), int(10), 10 );
+  left =  HHaarWavelet( integral, int(10), int(10), 10 );
   right = HHaarWavelet( integral, int(11), int(10), 10 );
 
   // Wrapping Integral
