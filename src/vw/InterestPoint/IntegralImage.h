@@ -65,6 +65,8 @@ namespace ip {
   XSecondDerivative( ImageViewBase<ViewT> const& view,
                      int const& x, int const& y,
                      unsigned const& filter_size ) {
+    VW_ASSERT( filter_size % 2 == 1,
+               vw::LogicErr() << "XSecondDerivative's filter size must be odd" );
     ViewT const& integral = view.impl();
     unsigned lobe = filter_size / 3;
     unsigned half_lobe = (unsigned) floor( float(lobe) / 2.0 );
@@ -111,6 +113,8 @@ namespace ip {
   YSecondDerivative( ImageViewBase<ViewT> const& view,
                      int const& x, int const& y,
                      unsigned const& filter_size ) {
+    VW_ASSERT( filter_size % 2 == 1,
+               vw::LogicErr() << "YSecondDerivative's filter size must be odd" );
     ViewT const& integral = view.impl();
     unsigned lobe = filter_size / 3;
     unsigned half_lobe = (unsigned) floor( float(lobe) / 2.0 );
@@ -144,7 +148,8 @@ namespace ip {
   XYDerivative( ImageView<PixelT> const& integral,
                 int const& x, int const& y,
                 unsigned const& filter_size ) {
-
+    VW_ASSERT( filter_size % 2 == 1,
+               vw::LogicErr() << "XYDerivative's filter size must be odd" );
     unsigned lobe = filter_size / 3;
     PixelT derivative;
 
@@ -181,6 +186,8 @@ namespace ip {
   inline HHaarWavelet( ImageViewBase<ViewT> const& view,
                        int const& x, int const& y,
                        float const& size ) {
+    VW_ASSERT( int(size) % 2 == 0,
+               vw::LogicErr() << "HHaarWavelet's filter size must be even" );
     ViewT const& integral = view.impl();
     float response;
     int half_size = int(round( size / 2.0));
@@ -251,6 +258,8 @@ namespace ip {
   inline VHaarWavelet( ImageViewBase<ViewT> const& view,
                        int const& x, int const& y,
                        float const& size ) {
+    VW_ASSERT( int(size) % 2 == 0,
+               vw::LogicErr() << "VHaarWavelet's filter size must be odd" );
     ViewT const& integral = view.impl();
     float response;
     int half_size = int(round( size / 2.0));
