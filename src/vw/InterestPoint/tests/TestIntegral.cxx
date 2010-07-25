@@ -21,12 +21,10 @@ TEST( Integral, IntegralSumming ) {
   integral = integral_image( graffiti );
 
   for (unsigned size = 10; size <= 70; size+= 10) {
-    float sum = IntegralBlock( integral,
-                               Vector2i(0,0),
-                               Vector2i(size,size) );
+    float sum = IntegralBlock( integral, BBox2i(1,1,size,size) );
     float actual_sum = 0;
-    for (unsigned i = 0; i < size; i++ ) {
-      for (unsigned j = 0; j < size; j++ ) {
+    for (unsigned i = 1; i < size; i++ ) {
+      for (unsigned j = 1; j < size; j++ ) {
         actual_sum+=graffiti(i,j);
       }
     }

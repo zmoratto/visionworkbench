@@ -22,34 +22,26 @@ namespace ip {
   /// Integral Block Evaluation
   ///
   /// This is for summing an area of pixels described by integral
-  template <class PixelT>
-  inline PixelT
-  IntegralBlock( ImageView<PixelT> const& integral,
-                 Vector2i const& top_left,
-                 Vector2i const& bottom_right ) {
+  template <class ViewT>
+  inline typename ViewT::pixel_type IntegralBlock( ImageViewBase<ViewT> const& view,
+                                                   BBox2i const& area ) {
+    // Shifting for definition change of integral image
+    BBox2i iarea( area.min()-Vector2i(1,1), area.size() );
+    ViewT const& integral = view.impl();
 
 #if defined(VW_ENABLE_BOUNDS_CHECK) && (VW_ENABLE_BOUNDS_CHECK==1)
-    VW_ASSERT(top_left.x() < integral.cols(),
-              vw::ArgumentErr() << "x0 out of bounds. "<< integral.cols() <<" : "
-              << top_left << bottom_right << "\n");
-    VW_ASSERT(bottom_right.x() < integral.cols(),
-              vw::ArgumentErr() << "x1 out of bounds. "<< integral.cols() <<" : "
-              << top_left << bottom_right << "\n");
-    VW_ASSERT(top_left.y() < integral.rows(),
-              vw::ArgumentErr() << "y0 out of bounds. "<< integral.rows() <<" : "
-              << top_left << bottom_right << "\n");
-    VW_ASSERT(bottom_right.y() < integral.rows(),
-              vw::ArgumentErr() << "y1 out of bounds. "<< integral.rows() <<" : "
-              << top_left << bottom_right << "\n");
+    VW_ASSERT( bounding_box(integral).contains( iarea.min() ),
+               vw::ArgumentErr() << "Min of area is out of bounds. Accessing "
+               << iarea.min() << "\n" );
+    VW_ASSERT( bounding_box(integral).contains( area.max() ),
+               vw::ArgumentErr() << "Max of area is out of bounds. Accessing "
+               << area.max() << "\n" );
 #endif
 
-    PixelT result;
-    result = integral( top_left.x(), top_left.y() );
-    result += integral( bottom_right.x(), bottom_right.y() );
-    result -= integral( top_left.x(), bottom_right.y() );
-    result -= integral( bottom_right.x(), top_left.y() );
-
-    return result;
+    return integral( iarea.min()[0], iarea.min()[1] ) +
+      integral(iarea.max()[0], iarea.max()[1] ) -
+      integral(iarea.max()[0], iarea.min()[1] ) -
+      integral(iarea.min()[0], iarea.max()[1] );
   }
 
   /// X First Derivative
@@ -68,29 +60,30 @@ namespace ip {
   /// X Second Derivative
   /// - x,y         = location to center the calculation on
   /// - filter_size = size of window for calculation
-  template <class PixelT>
-  inline PixelT
-  XSecondDerivative( ImageView<PixelT> const& integral,
+  template <class ViewT>
+  inline typename ViewT::pixel_type
+  XSecondDerivative( ImageViewBase<ViewT> const& view,
                      int const& x, int const& y,
                      unsigned const& filter_size ) {
+    ViewT const& integral = view.impl();
     unsigned lobe = filter_size / 3;
     unsigned half_lobe = (unsigned) floor( float(lobe) / 2.0 );
-    PixelT derivative;
+    typename ViewT::pixel_type derivative;
 
-    // Adding positive left;
+    // Adding positive left
     derivative = IntegralBlock( integral,
-                                Vector2i( x - lobe - half_lobe, y - lobe + 1 ),
-                                Vector2i( x - half_lobe, y + lobe ) );
+                                BBox2i( x - lobe - half_lobe, y - lobe + 1,
+                                        lobe, 2*lobe - 1 ) );
 
     // Adding negative middle;
     derivative -= 2.0*IntegralBlock( integral,
-                                     Vector2i( x - half_lobe, y - lobe + 1 ),
-                                     Vector2i( x + half_lobe + 1, y + lobe ) );
+                                     BBox2i( x - half_lobe, y - lobe + 1,
+                                             2*half_lobe+1, 2*lobe - 1 ) );
 
-    // Adding positive right;
+    // Adding positive right
     derivative += IntegralBlock( integral,
-                                 Vector2i( x + half_lobe + 1, y - lobe + 1 ),
-                                 Vector2i( x + half_lobe + lobe + 1, y + lobe ) );
+                                 BBox2i( x + half_lobe + 1, y - lobe + 1,
+                                         lobe, 2*lobe - 1 ) );
 
     derivative /= filter_size*filter_size;
 
@@ -113,29 +106,30 @@ namespace ip {
   /// Y Second Derivative
   /// - x,y         = location to center the calculation on
   /// - filter_size = size of window for calculation
-  template <class PixelT>
-  inline PixelT
-  YSecondDerivative( ImageView<PixelT> const& integral,
+  template <class ViewT>
+  inline typename ViewT::pixel_type
+  YSecondDerivative( ImageViewBase<ViewT> const& view,
                      int const& x, int const& y,
                      unsigned const& filter_size ) {
+    ViewT const& integral = view.impl();
     unsigned lobe = filter_size / 3;
     unsigned half_lobe = (unsigned) floor( float(lobe) / 2.0 );
-    PixelT derivative;
+    typename ViewT::pixel_type derivative;
 
     // Adding positive top;
     derivative = IntegralBlock( integral,
-                                Vector2i( x - lobe + 1, y - lobe - half_lobe ),
-                                Vector2i( x + lobe, y - half_lobe ) );
+                                BBox2i( x - lobe + 1, y - lobe - half_lobe,
+                                        2*lobe - 1, lobe ) );
 
     // Adding negative middle;
     derivative -= 2.0*IntegralBlock( integral,
-                                     Vector2i( x - lobe + 1, y - half_lobe ),
-                                     Vector2i( x + lobe, y + half_lobe + 1 ) );
+                                     BBox2i( x - lobe + 1, y - half_lobe,
+                                             2*lobe - 1, 2*half_lobe+1 ) );
 
     // Adding positive bottom;
     derivative += IntegralBlock( integral,
-                                 Vector2i( x - lobe + 1, y + half_lobe + 1 ),
-                                 Vector2i( x + lobe, y + half_lobe + lobe + 1 ) );
+                                 BBox2i( x - lobe + 1, y + half_lobe + 1,
+                                         2*lobe - 1, lobe ) );
 
     derivative /= filter_size*filter_size;
 
@@ -156,23 +150,19 @@ namespace ip {
 
     // Adding positive top left
     derivative = IntegralBlock( integral,
-                                Vector2i( x - lobe, y - lobe ),
-                                Vector2i( x, y ) );
+                                BBox2i( x - lobe, y - lobe, lobe, lobe ) );
 
     // Adding negative top right
     derivative -= IntegralBlock( integral,
-                                 Vector2i( x + 1, y - lobe ),
-                                 Vector2i( x + lobe + 1, y ) );
+                                 BBox2i( x + 1, y - lobe, lobe, lobe ) );
 
     // Adding negative bottom left
     derivative -= IntegralBlock( integral,
-                                 Vector2i( x - lobe, y + 1 ),
-                                 Vector2i( x, y + lobe + 1 ) );
+                                 BBox2i( x - lobe, y + 1, lobe, lobe ) );
 
     // Adding positve bottom right
     derivative += IntegralBlock( integral,
-                                 Vector2i( x + 1, y + 1 ),
-                                 Vector2i( x + 1 + lobe, y + 1 + lobe ) );
+                                 BBox2i( x + 1, y + 1, lobe, lobe ) );
 
     derivative /= filter_size*filter_size;
 
@@ -188,10 +178,10 @@ namespace ip {
   // Note: Filter will be evaluated at a size nearest to a multiple of two
   template <class ViewT>
   typename boost::disable_if<IsFloatingPointIndexable<ViewT>, float>::type
-  inline HHaarWavelet( ImageViewBase<ViewT> const& integral,
+  inline HHaarWavelet( ImageViewBase<ViewT> const& view,
                        int const& x, int const& y,
                        float const& size ) {
-
+    ViewT const& integral = view.impl();
     float response;
     int half_size = int(round( size / 2.0));
     int i_size = half_size << 1;
@@ -199,11 +189,11 @@ namespace ip {
     int left = int(round( x - size/2));
 
 #if defined(VW_ENABLE_BOUNDS_CHECK) && (VW_ENABLE_BOUNDS_CHECK==1)
-    VW_ASSERT(left+i_size < integral.impl().cols(),
-              vw::ArgumentErr() << "left out of bounds. "<< integral.impl().cols() <<" : "
+    VW_ASSERT(left+i_size < integral.cols(),
+              vw::ArgumentErr() << "left out of bounds. "<< integral.cols() <<" : "
               << left+i_size << " [top left] " << top << " " << left << "\n");
-    VW_ASSERT(top+i_size < integral.impl().rows(),
-              vw::ArgumentErr() << "top out of bounds. " << integral.impl().rows() <<" : "
+    VW_ASSERT(top+i_size < integral.rows(),
+              vw::ArgumentErr() << "top out of bounds. " << integral.rows() <<" : "
               << top+i_size << "\n");
     VW_ASSERT(left >= 0,
               vw::ArgumentErr() << "left is too low. " << 0 << " : " << left << "\n");
@@ -211,12 +201,12 @@ namespace ip {
               vw::ArgumentErr() << "top is too low. " << 0 << " : " << top << "\n");
 #endif
 
-    response = -integral.impl()(left, top);
-    response += 2*integral.impl()(left+half_size, top);
-    response -= integral.impl()(left+i_size, top);
-    response += integral.impl()(left, top+i_size);
-    response -= 2*integral.impl()(left+half_size, top+i_size);
-    response += integral.impl()(left+i_size, top+i_size);
+    response = -integral(left, top);
+    response += 2*integral(left+half_size, top);
+    response -= integral(left+i_size, top);
+    response += integral(left, top+i_size);
+    response -= 2*integral(left+half_size, top+i_size);
+    response += integral(left+i_size, top+i_size);
 
     return response;
   }
@@ -231,21 +221,21 @@ namespace ip {
   //       view of the integral
   template <class ViewT>
   typename boost::enable_if<IsFloatingPointIndexable<ViewT>, float>::type
-  inline HHaarWavelet( ImageViewBase<ViewT> const& integral,
+  inline HHaarWavelet( ImageViewBase<ViewT> const& view,
                        float const& x, float const& y,
                        float const& size ) {
-
+    ViewT const& integral = view.impl();
     float response;
     float half_size = size / 2.0;
     float top = y - half_size;
     float left = x - half_size;
 
-    response = -integral.impl()(left, top);
-    response += 2*integral.impl()(left+half_size, top);
-    response -= integral.impl()(left+size, top);
-    response += integral.impl()(left, top+size);
-    response -= 2*integral.impl()(left+half_size, top+size);
-    response += integral.impl()(left+size, top+size);
+    response = -integral(left, top);
+    response += 2*integral(left+half_size, top);
+    response -= integral(left+size, top);
+    response += integral(left, top+size);
+    response -= 2*integral(left+half_size, top+size);
+    response += integral(left+size, top+size);
 
     return response;
   }
@@ -258,10 +248,10 @@ namespace ip {
   // Note: Filter will be evaluated at a size nearest to a multiple of two
   template <class ViewT>
   typename boost::disable_if<IsFloatingPointIndexable<ViewT>, float>::type
-  inline VHaarWavelet( ImageViewBase<ViewT> const& integral,
+  inline VHaarWavelet( ImageViewBase<ViewT> const& view,
                        int const& x, int const& y,
                        float const& size ) {
-
+    ViewT const& integral = view.impl();
     float response;
     int half_size = int(round( size / 2.0));
     int i_size = half_size << 1;
@@ -269,11 +259,11 @@ namespace ip {
     int left = int(round( x - size/2));
 
 #if defined(VW_ENABLE_BOUNDS_CHECK) && (VW_ENABLE_BOUNDS_CHECK==1)
-    VW_ASSERT(left+i_size < integral.impl().cols(),
-              vw::ArgumentErr() << "left out of bounds. "<< integral.impl().cols() <<" : "
+    VW_ASSERT(left+i_size < integral.cols(),
+              vw::ArgumentErr() << "left out of bounds. "<< integral.cols() <<" : "
               << left+i_size << " [top left] " << top << " " << left << "\n");
-    VW_ASSERT(top+i_size < integral.impl().rows(),
-              vw::ArgumentErr() << "top out of bounds. " << integral.impl().rows() <<" : "
+    VW_ASSERT(top+i_size < integral.rows(),
+              vw::ArgumentErr() << "top out of bounds. " << integral.rows() <<" : "
               << top+i_size << "\n");
     VW_ASSERT(left >= 0,
               vw::ArgumentErr() << "left is too low. " << 0 << " : " << left << "\n");
@@ -281,12 +271,12 @@ namespace ip {
               vw::ArgumentErr() << "top is too low. " << 0 << " : " << top << "\n");
 #endif
 
-    response = -integral.impl()(left, top);
-    response += integral.impl()(left+i_size, top);
-    response += 2*integral.impl()(left, top+half_size);
-    response -= 2*integral.impl()(left+i_size, top+half_size);
-    response -= integral.impl()(left, top+i_size);
-    response += integral.impl()(left+i_size, top+i_size);
+    response = -integral(left, top);
+    response += integral(left+i_size, top);
+    response += 2*integral(left, top+half_size);
+    response -= 2*integral(left+i_size, top+half_size);
+    response -= integral(left, top+i_size);
+    response += integral(left+i_size, top+i_size);
 
     return response;
   }
@@ -302,21 +292,21 @@ namespace ip {
   //       view of the integral
   template <class ViewT>
   typename boost::enable_if<IsFloatingPointIndexable<ViewT>, float>::type
-  inline VHaarWavelet( ImageViewBase<ViewT> const& integral,
+  inline VHaarWavelet( ImageViewBase<ViewT> const& view,
                        float const& x, float const& y,
                        float const& size ) {
-
+    ViewT const& integral = view.impl();
     float response;
     float half_size = size / 2.0;
     float top = float(y) - half_size;
     float left = float(x) - half_size;
 
-    response = -integral.impl()(left, top);
-    response += integral.impl()(left+size, top);
-    response += 2*integral.impl()(left, top+half_size);
-    response -= 2*integral.impl()(left+size, top+half_size);
-    response -= integral.impl()(left, top+size);
-    response += integral.impl()(left+size, top+size);
+    response = -integral(left, top);
+    response += integral(left+size, top);
+    response += 2*integral(left, top+half_size);
+    response -= 2*integral(left+size, top+half_size);
+    response -= integral(left, top+size);
+    response += integral(left+size, top+size);
 
     return response;
   }
