@@ -417,11 +417,31 @@ namespace math {
     /// Copy constructor.
     template <class BBoxT1, class RealT1, size_t DimN1>
     BBox( BBoxBase<BBoxT1, RealT1, DimN1> const& bbox )
-      : BBoxBase<BBox<RealT, DimN>, RealT, DimN>( bbox.min(), bbox.max() ) {}
+      : BBoxBase<BBox<RealT, DimN>, RealT, DimN>() {
+        *this = bbox;
+      };
 
-    /// Copy assignment operator.
+    // assignment operator.
+    // If we're assigning a floating type to an int type, expand the box to the
+    // nearest int.
     template <class BBoxT1, class RealT1, size_t DimN1>
-    BBox& operator=( BBoxBase<BBoxT1, RealT1, DimN1> const& bbox ) {
+    typename boost::enable_if<
+      boost::mpl::and_<
+        typename boost::is_float<RealT1>::type,
+        typename boost::is_integral<RealT>::type>,
+    BBox&>::type operator=( BBoxBase<BBoxT1, RealT1, DimN1> const& bbox ) {
+      this->min() = VectorUnaryFunc<Vector<RealT1, DimN>, ArgFloorFunctor>(bbox.min());
+      this->max() = VectorUnaryFunc<Vector<RealT1, DimN>, ArgCeilFunctor>(bbox.max());
+      return *this;
+    }
+
+    /// assignment operator.
+    template <class BBoxT1, class RealT1, size_t DimN1>
+    typename boost::disable_if<
+      boost::mpl::and_<
+        typename boost::is_float<RealT1>::type,
+        typename boost::is_integral<RealT>::type>,
+    BBox&>::type operator=( BBoxBase<BBoxT1, RealT1, DimN1> const& bbox ) {
       this->min() = bbox.min();
       this->max() = bbox.max();
       return *this;

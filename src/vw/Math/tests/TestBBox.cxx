@@ -376,3 +376,58 @@ TEST(BBox, Math) {
   EXPECT_DOUBLE_EQ( 3, b2.max()[0] );
   EXPECT_DOUBLE_EQ( 6, b2.max()[1] );
 }
+
+TEST(BBox, Round) {
+#if 0
+for each of copy, assignment
+  for each of (int, int), (float, float), (int, float), (float int)
+    for each of (same values, different values)
+#endif
+
+  // make sure that an integer-truncated bbox always contains the original fp
+  // bbox
+  const BBox2  af(0,0,2,2);
+  const BBox2i ai(0,0,2,2);
+  EXPECT_EQ(af, BBox2(ai))  << "fp(int),  no change";
+  EXPECT_EQ(ai, BBox2i(af)) << "int(fp),  no change";
+  EXPECT_EQ(ai, BBox2i(ai)) << "int(int), no change";
+  EXPECT_EQ(af, BBox2(af))  << "fp(fp),   no change";
+
+  const BBox2  bf(-0.8, 2.1);
+  const BBox2 bfe(-1, 3);
+  const BBox2i bi(-1, 3);
+  EXPECT_EQ(bfe, BBox2(bi)) << "fp(int),  no change";
+  EXPECT_EQ(bi, BBox2i(bf)) << "int(fp),  round";
+  EXPECT_EQ(bi, BBox2i(bi)) << "int(int), no change";
+  EXPECT_EQ(bf, BBox2(bf))  << "fp(fp),   no change";
+
+  const BBox2  cf(0,0,2,2);
+  const BBox2i ci(0,0,2,2);
+  BBox2  cf2;
+  BBox2i ci2;
+
+  cf2 = ci;
+  EXPECT_EQ(cf, cf2) << " fp = int, no change";
+  ci2 = cf;
+  EXPECT_EQ(ci, ci2) << "int = fp,  no change";
+  ci2 = ci;
+  EXPECT_EQ(ci, ci2) << "int = int, no change";
+  cf2 = cf;
+  EXPECT_EQ(cf, cf2) << " fp = fp,  no change";
+
+  const BBox2  df(-0.8, 2.1);
+  const BBox2 dfe(-1, 3);
+  const BBox2i di(-1, 3);
+  BBox2 df2;
+  BBox2i di2;
+
+  df2 = di;
+  EXPECT_EQ(dfe, df2) << " fp = int, no change";
+  di2 = df;
+  EXPECT_EQ(di, di2) << "int = fp,  round";
+  di2 = di;
+  EXPECT_EQ(di, di2) << "int = int, no change";
+  df2 = df;
+  EXPECT_EQ(df, df2) << " fp = fp,  no change";
+
+}
