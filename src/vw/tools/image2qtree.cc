@@ -402,8 +402,8 @@ void do_mosaic(const Options& opt, const ProgressCallback *progress)
                                       range_type::min(), range_type::max());
     }
 
-    BBox2i bbox = geotx.forward_bbox( BBox2i(0,0,source.cols(),source.rows()) );
-    if ( global ) {
+    BBox2 bbox = geotx.forward_bbox( BBox2(0,0,source.cols(),source.rows()) );
+    if (global) {
       vw_out() << "\t--> Detected global overlay. Using cylindrical edge extension to hide the seam.\n";
       source = crop( transform( source, geotx, source.cols(), source.rows(), CylindricalEdgeExtension() ), bbox );
     } else {

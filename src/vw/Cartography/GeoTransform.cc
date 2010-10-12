@@ -76,7 +76,7 @@ namespace cartography {
     return Vector2(x, y);
   }
 
-  BBox2i GeoTransform::forward_bbox( BBox2i const& bbox ) const {
+  BBox2 GeoTransform::forward_bbox( BBox2 const& bbox ) const {
     BBox2 r = TransformHelper<GeoTransform,ContinuousFunction,ContinuousFunction>::forward_bbox(bbox);
     BresenhamLine l1( bbox.min(), bbox.max() );
     while ( l1.is_good() ) {
@@ -94,10 +94,10 @@ namespace cartography {
       ++l2;
     }
 
-    return grow_bbox_to_int(r);
+    return r;
   }
 
-  BBox2i GeoTransform::reverse_bbox( BBox2i const& bbox ) const {
+  BBox2 GeoTransform::reverse_bbox( BBox2 const& bbox ) const {
     BBox2 r = TransformHelper<GeoTransform,ContinuousFunction,ContinuousFunction>::reverse_bbox(bbox);
     BresenhamLine l1( bbox.min(), bbox.max() );
     while ( l1.is_good() ) {
@@ -115,7 +115,7 @@ namespace cartography {
       ++l2;
     }
 
-    return grow_bbox_to_int(r);
+    return r;
   }
 
   void reproject_point_image(ImageView<Vector3> const& point_image,

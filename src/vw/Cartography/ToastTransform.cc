@@ -275,39 +275,39 @@ vw::Vector2 vw::cartography::ToastTransform::reverse(vw::Vector2 const& point) c
 
 // We override forward_bbox so it understands to check if the image
 // crosses the poles or not.
-vw::BBox2i vw::cartography::ToastTransform::forward_bbox( vw::BBox2i const& bbox ) const {
+vw::BBox2 vw::cartography::ToastTransform::forward_bbox( vw::BBox2 const& bbox ) const {
   // If the source bounding box contains the south pole, then the dest
   // bounding box is the entire TOAST projection space, since the
   // south pole is mapped to the four corners of TOAST.
 
   Vector2 south_pole_pixel;
   try {
-    south_pole_pixel = m_georef.lonlat_to_pixel(Vector2i(0,-90));
+    south_pole_pixel = m_georef.lonlat_to_pixel(Vector2(0,-90));
   } catch (const ProjectionErr& e) {
     // We asked for a point not defined in the projection, most likely.  Assume
     // the point represents a notch discontinuity, and ask for a cross through it.
     // The center of that cross will hopefully be the correct point.
     Vector2 a,b,c,d;
 
-    a = m_georef.lonlat_to_pixel(Vector2i(  0, -89.9));
-    b = m_georef.lonlat_to_pixel(Vector2i( 90, -89.9));
-    c = m_georef.lonlat_to_pixel(Vector2i(180, -89.9));
-    d = m_georef.lonlat_to_pixel(Vector2i(270, -89.9));
+    a = m_georef.lonlat_to_pixel(Vector2(  0, -89.9));
+    b = m_georef.lonlat_to_pixel(Vector2( 90, -89.9));
+    c = m_georef.lonlat_to_pixel(Vector2(180, -89.9));
+    d = m_georef.lonlat_to_pixel(Vector2(270, -89.9));
 
     south_pole_pixel = (a + b + c + d)/4.;
   }
 
   if( bbox.contains(south_pole_pixel) )
-    return BBox2i(0,0,m_resolution,m_resolution);
+    return BBox2(0,0,m_resolution,m_resolution);
 
   BBox2 src_bbox = TransformHelper<ToastTransform,ContinuousFunction,ContinuousFunction>::forward_bbox(bbox);
-  return grow_bbox_to_int(src_bbox);
+  return src_bbox;
 }
 
 
 // We override reverse_bbox so it understands to check if the image
 // crosses the poles or not.
-vw::BBox2i vw::cartography::ToastTransform::reverse_bbox( vw::BBox2i const& bbox, bool approximate ) const {
+vw::BBox2 vw::cartography::ToastTransform::reverse_bbox( vw::BBox2 const& bbox, bool approximate ) const {
 
   BBox2 src_bbox;
   if (approximate) {
@@ -315,12 +315,11 @@ vw::BBox2i vw::cartography::ToastTransform::reverse_bbox( vw::BBox2i const& bbox
     src_bbox.grow( reverse( Vector2(bbox.max().x()-1,bbox.min().y()) ) ); // Top right
     src_bbox.grow( reverse( Vector2(bbox.min().x(),bbox.max().y()-1) ) ); // Bottom left
     src_bbox.grow( reverse( Vector2(bbox.max().x()-1,bbox.max().y()-1) ) ); // Bottom right
-    grow_bbox_to_int( src_bbox );
   } else {
     src_bbox = TransformHelper<ToastTransform,ContinuousFunction,ContinuousFunction>::reverse_bbox(bbox);
   }
   reverse_bbox_poles( bbox, src_bbox );
-  return grow_bbox_to_int(src_bbox);
+  return src_bbox;
 }
 
 

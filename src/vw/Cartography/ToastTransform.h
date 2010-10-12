@@ -117,19 +117,14 @@ namespace cartography {
     virtual Vector2 forward( Vector2 const& point ) const;
     virtual Vector2 reverse( Vector2 const& point ) const;
 
-    virtual BBox2i forward_bbox( BBox2i const& bbox ) const;
+    virtual BBox2 forward_bbox( BBox2 const& bbox ) const;
 
-    // We override reverse_bbox so it understands to check if the image crosses
-    // the poles or not.  Pass in 'approximate' to compute reverse bounding
-    // boxes by transforming corner coordinates only. (This is much faster, but
-    // not 100% accurate.)
-
-    // We need to have one prototype that matches the Transform prototype or we
-    // get a warning.
-    virtual BBox2i reverse_bbox( BBox2i const& bbox) const {
-      return this->reverse_bbox( bbox, false );
-    }
-    virtual BBox2i reverse_bbox( BBox2i const& bbox, bool approximate ) const;
+    // We override reverse_bbox so it understands to check if the
+    // image crosses the poles or not.  Pass in 'approximate' to
+    // compute reverse bounding boxes by transforming corner
+    // coordinates only.  (This is much faster, but not 100%
+    // accurate.)
+    virtual BBox2 reverse_bbox( BBox2 const& bbox, bool approximate = false ) const;
 
     // Attempt to expand the given bounding box in the source pixel space
     // to include any poles containd in the given bounding box in the
@@ -153,7 +148,7 @@ namespace cartography {
     SparseImageCheck(TransformView<ChildT, cartography::ToastTransform> const& source)
       : m_view(source) {}
 
-    bool operator()( BBox2i const& bbox ) const {
+    bool operator()( BBox2 const& bbox ) const {
       // We could just call ToastTransform::reverse_bbox() here, but we
       // anticipate getting called with very large bounding boxes, so
       // even walking around the edges could be unacceptably slow.

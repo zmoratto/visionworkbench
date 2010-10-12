@@ -28,13 +28,6 @@ static const double VW_DEFAULT_MAX_TRANSFORM_IMAGE_SIZE = 1e10; // Ten gigapixel
 
 namespace vw {
 
-  /// A helper function to grow a floating-point bounding box
-  /// to the smallest enclosing integer bounding box.
-  inline BBox2i grow_bbox_to_int( BBox2 const bbox ) {
-    return BBox2i( Vector2i( (int32)floor(bbox.min().x()), (int32)floor(bbox.min().y()) ),
-                   Vector2i( (int32)floor(bbox.max().x())+1, (int32)floor(bbox.max().y())+1 ) );
-  }
-
   enum FunctionType {
     ConvexFunction,
     ContinuousFunction,
@@ -72,10 +65,10 @@ namespace vw {
     virtual FunctionType reverse_type() const { return DiscontinuousFunction; }
 
     /// This applies the forward transformation to an entire bounding box of pixels.
-    virtual BBox2i forward_bbox( BBox2i const& /*output_bbox*/ ) const { vw_throw( NoImplErr() << "forward_bbox() is not implemented for this transform." ); return BBox2i(); }
+    virtual BBox2 forward_bbox( BBox2 const& /*output_bbox*/ ) const { vw_throw( NoImplErr() << "forward_bbox() is not implemented for this transform." ); return BBox2(); }
 
     /// This applies the reverse transformation to an entire bounding box of pixels.
-    virtual BBox2i reverse_bbox( BBox2i const& /*input_bbox*/ ) const { vw_throw( NoImplErr() << "reverse_bbox() is not implemented for this transform." ); return BBox2i(); }
+    virtual BBox2 reverse_bbox( BBox2 const& /*input_bbox*/ ) const { vw_throw( NoImplErr() << "reverse_bbox() is not implemented for this transform." ); return BBox2(); }
 
     // Set the tolerance (in pixels) to which this Transform is willing to be approximated.
     virtual void set_tolerance( double tolerance ) { m_tolerance = tolerance; }
@@ -100,24 +93,24 @@ namespace vw {
     inline ImplT& impl() { return static_cast<ImplT&>(*this); }
     inline ImplT const& impl() const { return static_cast<ImplT const&>(*this); }
 
-    BBox2i forward_bbox( BBox2i const& bbox ) const {
+    BBox2 forward_bbox( BBox2 const& bbox ) const {
       ImplT const& txform = impl();
       BBox2 transformed_bbox;
       switch( txform.forward_type() ) {
       case ConvexFunction:
         transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.min().y()) ) ); // Top left
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-1,bbox.min().y()) ) ); // Top right
-        transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.max().y()-1) ) ); // Bottom left
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-1,bbox.max().y()-1) ) ); // Bottom right
+        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),bbox.min().y()) ) ); // Top right
+        transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.max().y()-std::numeric_limits<double>::epsilon()) ) ); // Bottom left
+        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),bbox.max().y()-std::numeric_limits<double>::epsilon()) ) ); // Bottom right
         break;
       case ContinuousFunction:
         for( int32 x=bbox.min().x(); x<bbox.max().x(); ++x ) { // Top and bottom
           transformed_bbox.grow( txform.forward( Vector2(x,bbox.min().y()) ) );
-          transformed_bbox.grow( txform.forward( Vector2(x,bbox.max().y()-1) ) );
+          transformed_bbox.grow( txform.forward( Vector2(x,bbox.max().y()-std::numeric_limits<double>::epsilon()) ) );
         }
-        for( int32 y=bbox.min().y()+1; y<bbox.max().y()-1; ++y ) { // Left and right
+        for( int32 y=bbox.min().y()+1; y<bbox.max().y()-std::numeric_limits<double>::epsilon(); ++y ) { // Left and right
           transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),y) ) );
-          transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-1,y) ) );
+          transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),y) ) );
         }
         break;
       case DiscontinuousFunction:
@@ -126,27 +119,27 @@ namespace vw {
             transformed_bbox.grow( txform.forward( Vector2(x,y) ) );
         break;
       }
-      return grow_bbox_to_int( transformed_bbox );
+      return transformed_bbox;
     }
 
-    BBox2i reverse_bbox( BBox2i const& bbox ) const {
+    BBox2 reverse_bbox( BBox2 const& bbox ) const {
       ImplT const& txform = impl();
       BBox2 transformed_bbox;
       switch( txform.reverse_type() ) {
       case ConvexFunction:
         transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.min().y()) ) ); // Top left
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-1,bbox.min().y()) ) ); // Top right
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.max().y()-1) ) ); // Bottom left
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-1,bbox.max().y()-1) ) ); // Bottom right
+        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),bbox.min().y()) ) ); // Top right
+        transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.max().y()-std::numeric_limits<double>::epsilon()) ) ); // Bottom left
+        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),bbox.max().y()-std::numeric_limits<double>::epsilon()) ) ); // Bottom right
         break;
       case ContinuousFunction:
         for( int32 x=bbox.min().x(); x<bbox.max().x(); ++x ) { // Top and bottom
           transformed_bbox.grow( txform.reverse( Vector2(x,bbox.min().y()) ) );
-          transformed_bbox.grow( txform.reverse( Vector2(x,bbox.max().y()-1) ) );
+          transformed_bbox.grow( txform.reverse( Vector2(x,bbox.max().y()-std::numeric_limits<double>::epsilon()) ) );
         }
-        for( int32 y=bbox.min().y()+1; y<bbox.max().y()-1; ++y ) { // Left and right
+        for( int32 y=bbox.min().y()+1; y<bbox.max().y()-std::numeric_limits<double>::epsilon(); ++y ) { // Left and right
           transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),y) ) );
-          transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-1,y) ) );
+          transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-std::numeric_limits<double>::epsilon(),y) ) );
         }
         break;
       case DiscontinuousFunction:
@@ -155,7 +148,7 @@ namespace vw {
             transformed_bbox.grow( txform.reverse( Vector2(x,y) ) );
         break;
       }
-      return grow_bbox_to_int( transformed_bbox );
+      return transformed_bbox;
     }
 
     /// This function is deprecated, and provided for backwards
@@ -605,8 +598,8 @@ namespace vw {
     Vector2 reverse( Vector2 const& point ) const { return m_transform->reverse( point ); }
     FunctionType forward_type() const { return m_transform->forward_type(); }
     FunctionType reverse_type() const { return m_transform->reverse_type(); }
-    BBox2i forward_bbox( BBox2i const& bbox ) const { return m_transform->forward_bbox( bbox ); }
-    BBox2i reverse_bbox( BBox2i const& bbox ) const { return m_transform->reverse_bbox( bbox ); }
+    BBox2 forward_bbox( BBox2 const& bbox ) const { return m_transform->forward_bbox( bbox ); }
+    BBox2 reverse_bbox( BBox2 const& bbox ) const { return m_transform->reverse_bbox( bbox ); }
     double tolerance() const { return m_transform->tolerance(); }
     void set_tolerance( double tolerance ) { m_transform->set_tolerance( tolerance ); }
   };

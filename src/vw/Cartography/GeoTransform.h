@@ -64,10 +64,10 @@ namespace cartography {
 
     // We override forward_bbox so it understands to check if the image
     // crosses the poles or not.
-    BBox2i forward_bbox( BBox2i const& bbox ) const;
+    BBox2 forward_bbox( BBox2 const& bbox ) const;
 
     // We do the same for reverse_bbox
-    BBox2i reverse_bbox( BBox2i const& bbox ) const;
+    BBox2 reverse_bbox( BBox2 const& bbox ) const;
   };
 
 
