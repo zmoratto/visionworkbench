@@ -290,8 +290,8 @@ TEST_F( ToastTransformTest, BasicBBoxCheck ) {
   // a 1x1 box at the point in question should represent the point).
 
   // (-90,45)
-  BBox2i in_box(lonlat_resolution/4, lonlat_resolution/8,1,1);
-  BBox2i out_box;
+  BBox2 in_box(lonlat_resolution/4, lonlat_resolution/8,1,1);
+  BBox2 out_box;
   EXPECT_NO_THROW( out_box = txform.forward_bbox(in_box); );
   EXPECT_VECTOR_NEAR(out_box.min(), (toast_resolution-1)*Vector2(1./2,1./4), 1e-5);
 

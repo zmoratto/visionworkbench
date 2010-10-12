@@ -76,22 +76,43 @@ namespace cartography {
     return Vector2(x, y);
   }
 
+  class Line {
+    private:
+      const Vector2& stop;
+      Vector2 i, step;
+    public:
+      Line(const Vector2& start_, const Vector2& stop_)
+        : stop(stop_), i(start_)
+      {
+        Vector2 diff = stop_-start_;
+        // TODO: Is this justifiable?
+        step = diff / (std::max<double>(::fabs(diff[0]), ::fabs(diff[1])));
+      }
+
+      operator bool() const { return i[0] < stop[0] && i[1] < stop[1]; }
+      const vw::Vector2& operator*() const { return i; }
+      Line& operator++() { i += step; return *this;}
+  };
+
   BBox2 GeoTransform::forward_bbox( BBox2 const& bbox ) const {
     BBox2 r = TransformHelper<GeoTransform,ContinuousFunction,ContinuousFunction>::forward_bbox(bbox);
-    BresenhamLine l1( bbox.min(), bbox.max() );
-    while ( l1.is_good() ) {
+
+    Line l1(bbox.min(), bbox.max());
+    Line l2(bbox.min() + Vector2(bbox.width(), 0),
+            bbox.max() - Vector2(bbox.width(), 0));
+
+    // these loops INTENTIONALLY skip the first step. the TransformHelper above
+    // already got those points.
+    while(++l1) {
       try {
         r.grow( this->forward( *l1 ) );
       } catch ( cartography::ProjectionErr const& e ) {}
-      ++l1;
     }
-    BresenhamLine l2( bbox.min() + Vector2i(bbox.width(),0),
-        bbox.max() + Vector2i(-bbox.width(),0) );
-    while ( l2.is_good() ) {
+
+    while(++l2) {
       try {
         r.grow( this->forward( *l2 ) );
       } catch ( cartography::ProjectionErr const& e ) {}
-      ++l2;
     }
 
     return r;
@@ -99,20 +120,23 @@ namespace cartography {
 
   BBox2 GeoTransform::reverse_bbox( BBox2 const& bbox ) const {
     BBox2 r = TransformHelper<GeoTransform,ContinuousFunction,ContinuousFunction>::reverse_bbox(bbox);
-    BresenhamLine l1( bbox.min(), bbox.max() );
-    while ( l1.is_good() ) {
+
+    Line l1(bbox.min(), bbox.max());
+    Line l2(bbox.min() + Vector2(bbox.width(), 0),
+            bbox.max() - Vector2(bbox.width(), 0));
+
+    // these loops INTENTIONALLY skip the first step. the TransformHelper above
+    // already got those points.
+    while(++l1) {
       try {
         r.grow( this->reverse( *l1 ) );
       } catch ( cartography::ProjectionErr const& e ) {}
-      ++l1;
     }
-    BresenhamLine l2( bbox.min() + Vector2i(bbox.width(),0),
-        bbox.max() + Vector2i(-bbox.width(),0) );
-    while ( l2.is_good() ) {
+
+    while(++l2) {
       try {
         r.grow( this->reverse( *l2 ) );
       } catch ( cartography::ProjectionErr const& e ) {}
-      ++l2;
     }
 
     return r;
