@@ -289,14 +289,16 @@ TEST_F( ToastTransformTest, BasicBBoxCheck ) {
   // form a bbox with the point in question at the center (PixelAsPoint, so
   // a 1x1 box at the point in question should represent the point).
 
+  const double E = std::numeric_limits<double>::epsilon();
+
   // (-90,45)
-  BBox2 in_box(lonlat_resolution/4, lonlat_resolution/8,1,1);
+  BBox2 in_box(lonlat_resolution/4, lonlat_resolution/8,E,E);
   BBox2 out_box;
   EXPECT_NO_THROW( out_box = txform.forward_bbox(in_box); );
   EXPECT_VECTOR_NEAR(out_box.min(), (toast_resolution-1)*Vector2(1./2,1./4), 1e-5);
 
   // Lower right edge: (-180,-45)
-  in_box = BBox2(toast_resolution-1,3*(toast_resolution-1)/4,1,1);
+  in_box = BBox2(toast_resolution-1,3*(toast_resolution-1)/4,E,E);
   EXPECT_NO_THROW( out_box = txform.reverse_bbox(in_box); );
   EXPECT_VECTOR_NEAR(out_box.min(), lonlat_resolution*Vector2(1,3./8), 1e-5 );
 }
