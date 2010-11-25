@@ -241,3 +241,10 @@ TEST( GeoReference, IOLoop ) {
                                            test_georeference ),
                 NoImplErr );
 }
+
+TEST( GeoReference, FailSafe ) {
+  GeoReference test;
+
+  std::string wkt("PROJCS[\"PolarStereographic Moon\",\nGEOGCS[\"GCS_Moon\",\nDATUM[\"D_Moon\",\nSPHEROID[\"Moon\",1737400,0]],\nPRIMEM[\"Reference_Meridian\",0],\nUNIT[\"degree\",0.0174532925199433]],\nPROJECTION[\"Polar_Stereographic\"],\nPARAMETER[\"latitude_of_origin\",-90],\nPARAMETER[\"central_meridian\",0],\nPARAMETER[\"scale_factor\",0],\nPARAMETER[\"false_easting\",0],\nPARAMETER[\"false_northing\",0],\nUNIT[\"metre\",1,\nAUTHORITY[\"EPSG\",\"9001\"]]]");
+  EXPECT_NO_THROW(test.set_wkt(wkt));
+}

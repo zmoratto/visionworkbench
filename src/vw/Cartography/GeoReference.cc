@@ -245,7 +245,7 @@ namespace cartography {
     std::vector<std::string> datum_strings;
     std::string trimmed_proj4_str = boost::trim_copy(proj4_str);
     boost::split( input_strings, trimmed_proj4_str, boost::is_any_of(" ") );
-    for (unsigned int i = 0; i < input_strings.size(); ++i) {
+    for (size_t i = 0; i < input_strings.size(); ++i) {
 
       // Pick out the parts of the projection string that pertain to
       // map projections.  We essentially want to eliminate all of
@@ -273,6 +273,37 @@ namespace cartography {
         datum_strings.push_back(input_strings[i]);
       }
     }
+
+    // Check for both k and lat_ts and correct if one has an invalid
+    {
+      double lat_ts = std::numeric_limits<double>::min();
+      double k = std::numeric_limits<double>::min();
+      size_t lat_ts_idx, k_idx;
+      lat_ts_idx = k_idx = output_strings.size();
+      for ( size_t i = 0; i < output_strings.size(); i++ ) {
+        if ( output_strings[i].find("+k=") == 0 ) {
+          std::istringstream in(output_strings[i].substr(3,output_strings[i].size()-3));
+          in >> k;
+          k_idx = i;
+        } else if ( output_strings[i].find("+lat_ts=") == 0 ) {
+          std::istringstream in(output_strings[i].substr(8,output_strings[i].size()-8));
+          in >> lat_ts;
+          lat_ts_idx = i;
+        }
+      }
+      if ( lat_ts_idx != output_strings.size() &&
+           k_idx != output_strings.size() ) {
+        // Can potentially correct errors
+        if ( k == 0 ) {
+          // Lat ts does the same thing so remove k
+          output_strings.erase( output_strings.begin()+k_idx );
+        } else if ( lat_ts < -90 || lat_ts > 90 ) {
+          // K does the same thing
+          output_strings.erase( output_strings.begin()+lat_ts_idx );
+        }
+      }
+    }
+
     std::ostringstream strm;
     for (unsigned int i = 0; i < output_strings.size(); ++i) {
       strm << output_strings[i] << " ";
