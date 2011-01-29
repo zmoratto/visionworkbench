@@ -5,6 +5,7 @@
  * Created on January 25, 2011, 1:18 AM
  */
 #include "OrbitalReader.hpp"
+#include "OrbitalWriter.hpp"
 #include "OrbitalReading.hpp"
 #include "DataRefiner.hpp"
 #include <cstdlib>
@@ -17,24 +18,30 @@ using namespace std;
  * 
  */
 int main(int argc, char** argv) {
-    // Declare a list
+    std::string INPUT_FILE = "apollo_17_orbit_positions.csv";
+    std::string OUTPUT_FILE = "apollo_17_orbit_positions_refined.csv";
+
+    // Create a place to store the readings.
     std::list<OrbitalReading> readings;
 
-    // Read in the data from the CSV file
-    try
+    // Read the input
+    OrbitalReader input_reader;
+    if (!input_reader.readFromCSV(INPUT_FILE, readings))
     {
-       readings = camread("apollo_17_orbit_positions.csv");
-    }
-    catch(std::string error)
-    {
-       std::cout << "Exception caught: " << error;
+        std::cerr << "Something went wrong when reading the input file" << std::endl;
+        return 1;
     }
 
-    // Send readings through for orbital refinement
-    refineData(readings);
+    // Adjust the readings
+    OrbitalRefiner refinement_algorithm;
+    if (!refinement_algorithm.refineOrbitalReadings(readings))
+    {
+        std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
+        return 1;
+    }
 
     // Write out the data back into a CSV file
-    // camwrite("apollo_17_orbit_positions_refined.csv");
+    camwrite(OUTPUT_FILE, readings);
 
     return 0;
 }

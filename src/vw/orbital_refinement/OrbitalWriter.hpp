@@ -10,10 +10,12 @@
 
 #include "OrbitalReading.hpp"
 #include <string>
-#include <set>
+#include <list>
 
-bool camwrite(std::multiset<OrbitalReading, OrbitalReading::TimestampLess> readings,
-        const std::string output_filename);
+std::string timeToString(OrbitalReading::timestamp_t);
+
+bool camwrite(const std::string output_filename,
+        std::list<OrbitalReading> readings);
 
 #endif	/* ORBITALWRITER_HPP */
 

@@ -8,10 +8,18 @@
 #ifndef DATAREFINER_HPP
 #define	DATAREFINER_HPP
 
-#include "OrbitalReading.hpp"
 #include <list>
+#include "OrbitalReading.hpp"
 
-void refineData(std::list<OrbitalReading> readings);
+//! Adjusts a set of OrbitalReadings so that they adhere to a
+//! likely orbital path.
+class OrbitalRefiner
+{
+public:
+  //! Adjust a set of OrbitalReadings so that they adhere to a
+  //! likely orbital path.
+  bool refineOrbitalReadings(std::list<OrbitalReading>& readings);
+};
 
 
 #endif	/* DATAREFINER_HPP */
