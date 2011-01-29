@@ -1,7 +1,7 @@
 ## -*- Makefile -*-
 ##
 ## User: hfung
-## Time: Jan 25, 2011 1:24:36 AM
+## Time: Jan 28, 2011 10:17:35 PM
 ## Makefile created by Oracle Solaris Studio.
 ##
 ## This file is generated automatically.
@@ -18,47 +18,63 @@ CCADMIN =
 
 
 # Define the target directories.
-TARGETDIR_main.cpp=GNU-x86_64-MacOSX
+TARGETDIR_a.out=GNU-x86_64-MacOSX
 
 
-all: $(TARGETDIR_main.cpp)/main.cpp
+all: $(TARGETDIR_a.out)/a.out
 
-## Target: main.cpp
-OBJS_main.cpp =  \
-	$(TARGETDIR_main.cpp)/main.o \
-	$(TARGETDIR_main.cpp)/OrbitalReader.o
-USERLIBS_main.cpp = $(SYSLIBS_main.cpp) 
-DEPLIBS_main.cpp =  
-LDLIBS_main.cpp = $(USERLIBS_main.cpp)
+## Target: a.out
+#CPPFLAGS_a.out = \
+#	-IDataRefiner.cpp \
+	-Imain.cpp \
+	-IOrbitalReader.cpp \
+	-IOrbitalWriter.cpp
+OBJS_a.out =  \
+	$(TARGETDIR_a.out)/DataRefiner.o \
+	$(TARGETDIR_a.out)/main.o \
+	$(TARGETDIR_a.out)/OrbitalReader.o \
+	$(TARGETDIR_a.out)/OrbitalWriter.o
+SYSLIBS_a.out = -lm 
+USERLIBS_a.out = $(SYSLIBS_a.out) 
+DEPLIBS_a.out =  
+LDLIBS_a.out = $(USERLIBS_a.out)
 
 
 # Link or archive
-$(TARGETDIR_main.cpp)/main.cpp: $(TARGETDIR_main.cpp) $(OBJS_main.cpp) $(DEPLIBS_main.cpp)
-	$(LINK.cc) $(CCFLAGS_main.cpp) $(CPPFLAGS_main.cpp) -o $@ $(OBJS_main.cpp) $(LDLIBS_main.cpp)
+$(TARGETDIR_a.out)/a.out: $(TARGETDIR_a.out) $(OBJS_a.out) $(DEPLIBS_a.out)
+	$(LINK.cc) $(CCFLAGS_a.out) $(CPPFLAGS_a.out) -o $@ $(OBJS_a.out) $(LDLIBS_a.out)
 
 
 # Compile source files into .o files
-$(TARGETDIR_main.cpp)/main.o: $(TARGETDIR_main.cpp) main.cpp
-	$(COMPILE.cc) $(CCFLAGS_main.cpp) $(CPPFLAGS_main.cpp) -o $@ main.cpp
+$(TARGETDIR_a.out)/DataRefiner.o: $(TARGETDIR_a.out) DataRefiner.cpp
+	$(COMPILE.cc) $(CCFLAGS_a.out) $(CPPFLAGS_a.out) -o $@ DataRefiner.cpp
 
-$(TARGETDIR_main.cpp)/OrbitalReader.o: $(TARGETDIR_main.cpp) OrbitalReader.cpp
-	$(COMPILE.cc) $(CCFLAGS_main.cpp) $(CPPFLAGS_main.cpp) -o $@ OrbitalReader.cpp
+$(TARGETDIR_a.out)/main.o: $(TARGETDIR_a.out) main.cpp
+	$(COMPILE.cc) $(CCFLAGS_a.out) $(CPPFLAGS_a.out) -o $@ main.cpp
+
+$(TARGETDIR_a.out)/OrbitalReader.o: $(TARGETDIR_a.out) OrbitalReader.cpp
+	$(COMPILE.cc) $(CCFLAGS_a.out) $(CPPFLAGS_a.out) -o $@ OrbitalReader.cpp
+
+$(TARGETDIR_a.out)/OrbitalWriter.o: $(TARGETDIR_a.out) OrbitalWriter.cpp
+	$(COMPILE.cc) $(CCFLAGS_a.out) $(CPPFLAGS_a.out) -o $@ OrbitalWriter.cpp
 
 
 
 #### Clean target deletes all generated files ####
 clean:
 	rm -f \
-		$(TARGETDIR_main.cpp)/main.cpp \
-		$(TARGETDIR_main.cpp)/main.o \
-		$(TARGETDIR_main.cpp)/OrbitalReader.o
+		$(TARGETDIR_a.out)/a.out \
+		$(TARGETDIR_a.out)/DataRefiner.o \
+		$(TARGETDIR_a.out)/main.o \
+		$(TARGETDIR_a.out)/OrbitalReader.o \
+		$(TARGETDIR_a.out)/OrbitalWriter.o
 	$(CCADMIN)
-	rm -f -r $(TARGETDIR_main.cpp)
+	rm -f -r $(TARGETDIR_a.out)
 
 
 # Create the target directory (if needed)
-$(TARGETDIR_main.cpp):
-	mkdir -p $(TARGETDIR_main.cpp)
+$(TARGETDIR_a.out):
+	mkdir -p $(TARGETDIR_a.out)
 
 
 # Enable dependency checking
