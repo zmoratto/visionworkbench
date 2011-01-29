@@ -12,6 +12,7 @@
 
 struct OrbitalReading
 {
+public:
   // Define the data type we're using to store timestamps with
   // a millisecond resolution
   typedef unsigned long long timestamp_t;

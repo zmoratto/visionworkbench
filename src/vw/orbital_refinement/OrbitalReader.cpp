@@ -3,28 +3,26 @@
 #include <ctime>
 #include <sstream>
 
-#include <set>
+#include <list>
 
 #include "OrbitalReader.hpp"
 
 // This function reads from the input file, creating a set of reading objects
 // with an ID, normalized timestamp, x, y, and z.
-//std::multiset<OrbitalReading, OrbitalReading::TimestampLess>
-bool camread(const std::string input_filename,
-        std::multiset<OrbitalReading, OrbitalReading::TimestampLess> readings)
+std::list<OrbitalReading> camread(const std::string input_filename)
 {
   double x, y, z;
   std::string entry_id_string, time_string;
 
-  // Create a place to store the readings.  I chose a std::multiset<>
-  // so that it stays sorted by timestamp as we add the entries.  I chose
-  // multiset<> over set<> in case two entries have the same timestamp.
-  //std::multiset<OrbitalReading, OrbitalReading::TimestampLess> readings;
-
   // Open the file
   std::ifstream input_file(input_filename.c_str());
   if (!input_file)
-    return false;
+    throw std::string("File could not be opened"); 
+
+  // Create a place to store the readings.  I chose a std::multiset<>
+  // so that it stays sorted by timestamp as we add the entries.  I chose
+  // multiset<> over set<> in case two entries have the same timestamp.
+  std::list<OrbitalReading> readings;
 
   // Read each line.
   // Note that this code only parses the format found in our sample data,
@@ -58,25 +56,43 @@ bool camread(const std::string input_filename,
     OrbitalReading::timestamp_t t = stringToTime(time_string);
 
     // Create a new reading based on the data we just read.
-    readings.insert(OrbitalReading(entry_id_string, t, x, y, z));
+    readings.push_back(OrbitalReading(entry_id_string, t, x, y, z));
   }
 
   // They are already sorted by time (because we used a multiset).
   // Now normalize the time readings by subtracting the lowest time
   // from all of the timestamps.
-  OrbitalReading::timestamp_t min_time = readings.begin()->mTime;
-  for (std::multiset<OrbitalReading, OrbitalReading::TimestampLess>::iterator it = readings.begin();
+/*
+   PLB: std::sets are immutable
+      See (http://stackoverflow.com/questions/3775414/assignment-of-data-member-in-read-only-structure-class-in-stl-set) 
+      for more discussion. I'd suggest a different container type if you intend to do much manipulation of its contained objects
+      
+      Unfortunately sorted containers usually lock the key, requiring you to remove and reinsert objects if their keys change.
+*/
+    OrbitalReading::timestamp_t min_time = readings.begin()->mTime;
+  for (std::list<OrbitalReading>::iterator it = readings.begin();
        it != readings.end();
        ++it)
   {
-//    it->mTime -= min_time;
+    it->mTime -= min_time;
   }
 
   // Now for fun, write out the readings
-  
+  int i = 0;
+  for (std::list<OrbitalReading>::iterator it = readings.begin();
+       it != readings.end();
+       ++it, ++i)
+  {
+    std::cout << i << ", "
+              << it->mId << ", "
+              << it->mTime << ", "
+              << it->mCoord[0] << ", "
+              << it->mCoord[1] << ", "
+              << it->mCoord[2] << "\n";
+  }
 
 
-  return true;
+  return readings;
 }
 
 // This assumes the format "prefix/YYYY-MM-DDTHH:mm:ss.sss"

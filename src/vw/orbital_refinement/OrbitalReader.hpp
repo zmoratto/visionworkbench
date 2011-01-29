@@ -10,15 +10,13 @@
 
 #include "OrbitalReading.hpp"
 #include <string>
-#include <set>
+#include <list>
 
 OrbitalReading::timestamp_t stringToTime(std::string time_string);
 
 // Read camera data from an input file.
-// Return a set of orbital readings
-//std::multiset<OrbitalReading, OrbitalReading::TimestampLess>
-bool camread(const std::string input_filename,
-        std::multiset<OrbitalReading, OrbitalReading::TimestampLess> readings);
+// Return a list of orbital readings
+std::list<OrbitalReading> camread(const std::string input_filename);
 
 #endif
 
