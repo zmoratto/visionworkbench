@@ -10,6 +10,9 @@
 
 #include <vector>
 
+namespace vw {
+namespace math{
+
 class RungeKutta
 {
 public:
@@ -58,5 +61,7 @@ ResultT RungeKutta::solve(const DomainT& x0, const ResultT& y0,
 
   return y_final;
 }
+
+} } // namespace vw::math
 
 #endif

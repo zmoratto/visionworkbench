@@ -22,7 +22,6 @@ double my_derivative(double x, double y)
 TEST( RungeKutta, SimpleRungeKutta )
 {
   // use Runge-Kutta to evaluate f(x) = sin(x) + 2.2
-  double x = 0;
   double y = 2.2;
   double dx = .2;
 
