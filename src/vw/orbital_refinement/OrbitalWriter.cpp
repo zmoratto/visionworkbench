@@ -7,8 +7,9 @@
 
 #include "OrbitalWriter.hpp"
 
+static std::string timeToString(OrbitalReading::timestamp_t);
 
-bool camwrite(const std::string output_filename,
+bool OrbitalWriter::writeToCSV(const std::string output_filename,
         std::list<OrbitalReading> readings)
 {
     // Create the output stream

@@ -12,10 +12,12 @@
 #include <string>
 #include <list>
 
-std::string timeToString(OrbitalReading::timestamp_t);
+class OrbitalWriter
+{
+public:
 
-bool camwrite(const std::string output_filename,
-        std::list<OrbitalReading> readings);
-
+    bool writeToCSV(const std::string output_filename,
+            std::list<OrbitalReading> readings);
+};
 #endif	/* ORBITALWRITER_HPP */
 

@@ -41,7 +41,12 @@ int main(int argc, char** argv) {
     }
 
     // Write out the data back into a CSV file
-    camwrite(OUTPUT_FILE, readings);
+    OrbitalWriter output_writer;
+    if (!output_writer.writeToCSV(OUTPUT_FILE, readings))
+    {
+        std::cerr << "Something went wrong when writing the output file" << std::endl;
+        return 1;
+    }
 
     return 0;
 }
