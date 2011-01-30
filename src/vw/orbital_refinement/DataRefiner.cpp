@@ -19,6 +19,13 @@ namespace
   double sM=M/sGM;
   double GM=G*M;
 
+
+  void divideByOrbit(std::list< std::list<OrbitalReading> >& orbits,
+          std::list<OrbitalReading> readings)
+  {
+
+  }
+
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
   {
     // Sort the readings by timestamp.
@@ -33,6 +40,43 @@ namespace
     {
       it->mTime -= min_time;
     }
+  }
+
+  OrbitalReading calculateOrbitalDiffMean(std::list<OrbitalReading> orbit)
+  {
+      // Now do whatever this means:
+      //      dst0 = mean(diff(st(1:min(5,sz(1)),:)));
+      // Here's my take on it:
+      //  st is the reading array for this orbit.
+      //  sz(1) is the number of readings in this orbit.
+      //  min(5,sz(1)) is 5, or the number of readings if
+      //     there are less than 5.
+      //  st(1:min(...),:) is the first 5 rows of st.
+      //  diff(st(...)) is the difference between adjacent
+      //    rows, for those first 5 rows.
+      //  mean(diff(...)) is the average difference between
+      //    adjacent rows.
+
+      // Object to store the differences
+      OrbitalReading delta;
+
+      // Set the min value between 5 and the orbit size
+      int min = (5 < orbit.size())? 5 : orbit.size();
+
+      return delta;
+  }
+
+  OrbitalReading calculateAverageVelocity(OrbitalReading dst0)
+  {
+      // Storage object
+      OrbitalReading velocity;
+
+      // Divide each delta coordinate by the delta time
+      velocity->mCoord[0] = dst0->mCoord[0]/dst0->mTime;
+      velocity->mCoord[1] = dst0->mCoord[1]/dst0->mTime;
+      velocity->mCoord[2] = dst0->mCoord[2]/dst0->mTime;
+
+      return velocity;
   }
 
   void calculateRadialComponents(std::list<OrbitalReading>& readings, std::vector<double>& r)
@@ -50,6 +94,8 @@ namespace
       *r_it = r;
     }
   }
+
+  
 }
 
 bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
@@ -59,70 +105,68 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   // Interesting to me that in the matlab code, gaps are found
   // *before* sorting by time...isn't this a bug?
   // Todo:  divideByOrbit(readings);
+  std::list< std::list<OrbitalReading> > orbits;
+  divideByOrbit(orbits, readings);
 
-  // Next, normalize times so that each orbit starts at t=0
-  normalizeReadingsByTime(readings);
+  for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
+          read_orb != orbits.end(); ++read_orb)
+  {
+      std::list<OrbitalReading> orbit = read_orb;
 
-  // In the matlab file:
-  //  st is the data for a single orbit.  It has one row per reading,
-  //  in this format:
-  //    [t x y z w src(input file name) prefix(string stripped off of time stamps)]
+      // Next, normalize times so that each orbit starts at t=0
+      normalizeReadingsByTime(orbit);
 
-  // Now do whatever this means:
-  //      dst0 = mean(diff(st(1:min(5,sz(1)),:)));
-  // Here's my take on it:
-  //  st is the reading array for this orbit.
-  //  sz(1) is the number of readings in this orbit.
-  //  min(5,sz(1)) is 5, or the number of readings if
-  //     there are less than 5.
-  //  st(1:min(...),:) is the first 5 rows of st.
-  //  diff(st(...)) is the difference between adjacent
-  //    rows, for those first 5 rows.
-  //  mean(diff(...)) is the average difference between
-  //    adjacent rows.
+      // In the matlab file:
+      //  st is the data for a single orbit.  It has one row per reading,
+      //  in this format:
+      //    [t x y z w src(input file name) prefix(string stripped off of time stamps)
 
-  // And this:
-  //   v0 = dst0(2:4)/dst0(1);
-  //  dst0(1) is the average time delta
-  //  dst0(2:4) is the average x, y,and z deltas
-  //  so v0 is the average velocity in x, y, and z
-  //  for the first 5 readings.
+      // Now we calculate the mean of differences for each orbit
+      OrbitalReading dst0 = calculateOrbitalDiffMean(orbit);
 
-  //     p = [[st(1,2:4) v0]'; sM; st(:,1)];
-  // st(1,2:4) is the first reading's x,y,z.
-  // v0 is the x,y,z velocity estimated from first
-  //   5 readings.
-  // sM is a pre-defined constant, scaled Mass
-  // st(:,1) is the full set of timestamps for this orbit.
-  // so p is a cell with 1 column:
-  //  { [averages: x,y,z,v] sM [all timestamps] }
+      // And this:
+      //   v0 = dst0(2:4)/dst0(1);
+      //  dst0(1) is the average time delta
+      //  dst0(2:4) is the average x, y,and z deltas
+      //  so v0 is the average velocity in x, y, and z
+      //  for the first 5 readings.
+      OrbitalReading v0 = calculateAverageVelocity(dst0);
 
-  // dtm = average time delta between all readings in orbit
-  // dts = minimum time delta between all readings in orbit
-  // dt = dts/100, so it's in hundredths of a second instead of seconds
+      //     p = [[st(1,2:4) v0]'; sM; st(:,1)];
+      // st(1,2:4) is the first reading's x,y,z.
+      // v0 is the x,y,z velocity estimated from first
+      //   5 readings.
+      // sM is a pre-defined constant, scaled Mass
+      // st(:,1) is the full set of timestamps for this orbit.
+      // so p is a cell with 1 column:
+      //  { [averages: x,y,z,v] sM [all timestamps] }
 
-  // pb=conv(p(8:end),[0.5 0.5]);
-  //  p(8:end) would be all timestamps starting with the 3rd reading.
-  //  I'm not sure what the point is here...not familiar with the math
+      // dtm = average time delta between all readings in orbit
+      // dts = minimum time delta between all readings in orbit
+      // dt = dts/100, so it's in hundredths of a second instead of seconds
 
-  // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
-  //   upper bound (of???)
+      // pb=conv(p(8:end),[0.5 0.5]);
+      //  p(8:end) would be all timestamps starting with the 3rd reading.
+      //  I'm not sure what the point is here...not familiar with the math
 
-  // lb= [-inf*ones(6,1);   sM;   p(8)-dtm; pb(2:end-1)+dt];
-  //   lower bound (of???)
+      // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
+      //   upper bound (of???)
 
-  //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
-  //  Solves a non-linear least squares problem.
-  // I think this is where CG comes in?  I think this least squares method is minimizing a function, which is
-  // what CG would do, but using a different method?
+      // lb= [-inf*ones(6,1);   sM;   p(8)-dtm; pb(2:end-1)+dt];
+      //   lower bound (of???)
+
+      //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
+      //  Solves a non-linear least squares problem.
+      // I think this is where CG comes in?  I think this least squares method is minimizing a function, which is
+      // what CG would do, but using a different method?
 
 
 
-  // Calculate the radial component of each reading.
-  // It's in the same order as 'readings'
-  std::vector<double> r(readings.size());
-  calculateRadialComponents(readings, r);
-
+      // Calculate the radial component of each reading.
+      // It's in the same order as 'readings'
+      std::vector<double> r(orbit.size());
+      calculateRadialComponents(orbit, r);
+  }
 
 
 
