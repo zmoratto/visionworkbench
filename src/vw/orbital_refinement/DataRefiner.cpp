@@ -1,6 +1,5 @@
 #include "DataRefiner.hpp"
 #include "OrbitalReading.hpp"
-#include <Math.h>
 #include <list>
 
 #include <vector>
@@ -26,11 +25,15 @@ namespace
   void divideByOrbit(std::list< std::list<OrbitalReading> >& orbits,
           std::list<OrbitalReading> readings)
   {
+      // Sort the readings by timestamp.
+      readings.sort(OrbitalReading::TimestampLess());
+
       std::list<OrbitalReading> tempOrbit;
       
       // Iterate through all the readings
+      int k = 1;
       for (std::list<OrbitalReading>::iterator it = readings.begin();
-            it != readings.end(); ++it)
+            it != readings.end(); it++)
       {
           // If the tempOrbit is empty, add the reading we're on
           if (tempOrbit.empty())
@@ -38,7 +41,7 @@ namespace
           else
           {
               // Otherwise, check if the difference between the current reading
-              // and the first reading in the orbit is within the 3300 second range
+              // and the first reading in the orbit is within the 3300 second range (or 3300000 ms)
               // If it is, add it to the tempOrbit
               if ((it->mTime - tempOrbit.front().mTime) < 3300000 )
                   tempOrbit.push_back(*it);
@@ -49,13 +52,25 @@ namespace
                   orbits.push_back(tempOrbit);
                   // Clear the tempOrbit, then add the current reading as the first
                   // of the next set of orbits
-                  std::cout << "clearing orbit";
+
+                  /* DEBUG
+                  std::cout << "new orbit ----------" << std::endl;
+                  for (std::list<OrbitalReading>::iterator is = tempOrbit.begin();
+                        is != tempOrbit.end(); is++)
+                  {
+                      std::cout << k << ", " << is->mTime << std::endl;
+                      k++;
+                  }
+                  std::cout << std::endl; */
                   tempOrbit.clear();
                   tempOrbit.push_back(*it);
               }
           }
 
       }
+
+      // We still have the last tempOrbit, so push it back to orbits
+      orbits.push_back(tempOrbit);
   }
 
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
@@ -68,7 +83,7 @@ namespace
     OrbitalReading::timestamp_t min_time = readings.begin()->mTime;
     for (std::list<OrbitalReading>::iterator it = readings.begin();
       it != readings.end();
-      ++it)
+      it++)
     {
       it->mTime -= min_time;
     }
@@ -81,7 +96,7 @@ namespace
       diffs.resize(initial.size()-1);
 
       // Calculate the difference between each pair
-      for (int k =0; k < initial.size()-1; ++k)
+      for (int k =0; k < initial.size()-1; k++)
       {
           diffs[k] = initial[k+1]-initial[k];
       }
@@ -94,7 +109,7 @@ namespace
       double sum = 0;
 
       // Sum the values
-      for (int k = 0; k < values.size(); ++k)
+      for (int k = 0; k < values.size(); k++)
       {
           sum += values[k];
       }
@@ -108,7 +123,7 @@ namespace
       std::list<double> listMin;
 
       // Easiest to use a list to do this, so put the values in a list
-      for (int k = 0; k < values.size(); ++k)
+      for (int k = 0; k < values.size(); k++)
       {
           listMin.push_back(values[k]);
       }
@@ -148,7 +163,7 @@ namespace
       // Pull out the timestamp and x,y,z into their own vectors
       int k = 0;
       for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          it != orbit.end(); ++it, ++k)
+          it != orbit.end(); it++, k++)
       {
           times[k] = it->mTime;
           xs[k] = it->mCoord[0];
@@ -182,7 +197,7 @@ namespace
       // Grab the first min readings
       int k = 0;
       for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          k < min; ++it, ++k)
+          k < min; it++, k++)
       {
           minReads.push_back(*it);
       }
@@ -230,14 +245,14 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   std::list< std::list<OrbitalReading> > orbits;
   divideByOrbit(orbits, readings);
 
-  std::cout << "Number of orbits: " << orbits.size();
-  /*for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
+  for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
           read_orb != orbits.end(); ++read_orb)
   {
-      std::list<OrbitalReading> orbit = read_orb;
+      std::list<OrbitalReading> orbit = *read_orb;
 
-      // remember the minTime that we're about to normalize on, we have to add
+      // Remember the minTime that we're about to normalize on, we have to add
       // it back
+      double minTime = orbit.front().mTime;
 
       // Next, normalize times so that each orbit starts at t=0
       normalizeReadingsByTime(orbit);
@@ -250,6 +265,10 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // Now we calculate the mean of differences for each orbit
       OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(orbit);
 
+      // DEBUG
+      //std::cout << dst0.mId << ", " << dst0.mTime << ", " << dst0.mCoord[0]
+      //        << ", " << dst0.mCoord[1] << ", " << dst0.mCoord[2] << std::endl;
+      
       // And this:
       //   v0 = dst0(2:4)/dst0(1);
       //  dst0(1) is the average time delta
@@ -258,6 +277,11 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       //  for the first 5 readings.
       OrbitalReading v0 = calculateAverageVelocity(dst0);
 
+      // DEBUG
+      //std::cout << v0.mId << ", " << v0.mCoord[0]
+      //        << ", " << v0.mCoord[1] << ", " << v0.mCoord[2] << std::endl;
+
+      
       //     p = [[st(1,2:4) v0]'; sM; st(:,1)];
       // st(1,2:4) is the first reading's x,y,z.
       // v0 is the x,y,z velocity estimated from first
@@ -269,20 +293,22 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       std::list<double> p;
 
       OrbitalReading first = orbit.front();
-      p.push_back(first->mCoord[0]);
-      p.push_back(first->mCoord[1]);
-      p.push_back(first->mCoord[2]);
-      p.push_back(v0);
+      p.push_back(first.mCoord[0]);
+      p.push_back(first.mCoord[1]);
+      p.push_back(first.mCoord[2]);
+      p.push_back(v0.mCoord[0]);
+      p.push_back(v0.mCoord[1]);
+      p.push_back(v0.mCoord[2]);
       p.push_back(sM);
 
       // Add the timestamps
       for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          it != orbit.end(); ++it)
+          it != orbit.end(); it++)
       {
           p.push_back(it->mTime);
       }
 
-      
+
       // dtm = average time delta between all readings in orbit
       // dts = minimum time delta between all readings in orbit
       // dt = dts/100, so it's in hundredths of a second instead of seconds
@@ -292,7 +318,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // Pull out the timestamp into its own vector
       int k = 0;
       for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          it != orbit.end(); ++it, ++k)
+          it != orbit.end(); it++, k++)
       {
           times[k] = it->mTime;
       }
@@ -302,7 +328,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       double dt = dts/100;
 
       // pb=conv(p(8:end),[0.5 0.5]);
-      //  p(8:end) would be all timestamps starting with the 3rd reading.
+      //  p(8:end) would be all timestamps 
       //  I'm not sure what the point is here...not familiar with the math
 
       // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
@@ -317,12 +343,12 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // what CG would do, but using a different method?
 
 
-
+/*
       // Calculate the radial component of each reading.
       // It's in the same order as 'readings'
       std::vector<double> r(orbit.size());
-      calculateRadialComponents(orbit, r);
-  }*/
+      calculateRadialComponents(orbit, r);*/
+  }
 
 
 

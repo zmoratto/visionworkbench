@@ -20,6 +20,7 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
     if (!output_stream)
         throw std::string("File could not be opened for writing");
 
+    readings.sort(OrbitalReading::TimestampLess());
 
     // Write to the file
     int i = 0;
@@ -28,7 +29,7 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
     {
       output_stream << i << ", "
                     << it->mId << ", "
-                    << timeToString(it->mTime) << ", "
+                    << it->mTime << ", "
                     << it->mCoord[0] << ", "
                     << it->mCoord[1] << ", "
                     << it->mCoord[2] << "\n";
