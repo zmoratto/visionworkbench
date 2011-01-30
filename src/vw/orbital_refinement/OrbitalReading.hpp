@@ -28,6 +28,12 @@ public:
     mCoord[2] = z;
   }
 
+  // Destructor
+  ~OrbitalReading()
+  {
+    delete[] mCoord;
+  }
+
   std::string mId;
   timestamp_t mTime;
   double mCoord[3];

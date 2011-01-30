@@ -5,6 +5,9 @@
 
 #include <vector>
 #include <cmath>
+// For output stream debug, remove these later
+#include <cstdlib>
+#include <iostream>
 
 // Putting a function in an anonymous namespace makes it local to the file.
 // We might consider making these private functions instead, especially if
@@ -23,7 +26,36 @@ namespace
   void divideByOrbit(std::list< std::list<OrbitalReading> >& orbits,
           std::list<OrbitalReading> readings)
   {
+      std::list<OrbitalReading> tempOrbit;
+      
+      // Iterate through all the readings
+      for (std::list<OrbitalReading>::iterator it = readings.begin();
+            it != readings.end(); ++it)
+      {
+          // If the tempOrbit is empty, add the reading we're on
+          if (tempOrbit.empty())
+              tempOrbit.push_back(*it);
+          else
+          {
+              // Otherwise, check if the difference between the current reading
+              // and the first reading in the orbit is within the 3300 second range
+              // If it is, add it to the tempOrbit
+              if ((it->mTime - tempOrbit.front().mTime) < 3300000 )
+                  tempOrbit.push_back(*it);
+              // Otherwise...
+              else
+              {
+                  // Add the tempOrbit to the orbits list
+                  orbits.push_back(tempOrbit);
+                  // Clear the tempOrbit, then add the current reading as the first
+                  // of the next set of orbits
+                  std::cout << "clearing orbit";
+                  tempOrbit.clear();
+                  tempOrbit.push_back(*it);
+              }
+          }
 
+      }
   }
 
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
@@ -88,25 +120,6 @@ namespace
       return *listMin.begin();
   }
 
-  OrbitalReading calculateOrbitalDiffMeanWithMin(std::list<OrbitalReading> orbit)
-  {
-      // Set the min value between 5 and the orbit size
-      int min = (5 < orbit.size())? 5 : orbit.size();
-
-      std::list<OrbitalReading> minReads;
-
-      // Grab the first min readings
-      int k = 0;
-      for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          k < min; ++it, ++k)
-      {
-          minReads.push_back(*it);
-      }
-
-      // Pass the min list into the function that really does the work
-      return calculateOrbitalDiffMean(minReads);
-  }
-
   OrbitalReading calculateOrbitalDiffMean(std::list<OrbitalReading> orbit)
   {
       // Now do whatever this means:
@@ -121,9 +134,6 @@ namespace
       //    rows, for those first 5 rows.
       //  mean(diff(...)) is the average difference between
       //    adjacent rows.
-
-      // Object to store the differences
-      OrbitalReading delta;
 
       // Initialize vectors to the correct size for each of time,x,y,z
       std::vector<double> times;
@@ -153,23 +163,41 @@ namespace
       std::vector<double> delta_z = calculateDifferences(zs);
 
       // Calculate the average
-      delta->mTime = calculateAverage(delta_time);
-      delta->mCoord[0] = calculateAverage(delta_x);
-      delta->mCoord[1] = calculateAverage(delta_y);
-      delta->mCoord[2] = calculateAverage(delta_z);
+      OrbitalReading delta("AverageDelta",
+              calculateAverage(delta_time),
+              calculateAverage(delta_x),
+              calculateAverage(delta_y),
+              calculateAverage(delta_z));
 
       return delta;
   }
 
+  OrbitalReading calculateOrbitalDiffMeanWithMin(std::list<OrbitalReading> orbit)
+  {
+      // Set the min value between 5 and the orbit size
+      int min = (5 < orbit.size())? 5 : orbit.size();
+
+      std::list<OrbitalReading> minReads;
+
+      // Grab the first min readings
+      int k = 0;
+      for (std::list<OrbitalReading>::iterator it = orbit.begin();
+          k < min; ++it, ++k)
+      {
+          minReads.push_back(*it);
+      }
+
+      // Pass the min list into the function that really does the work
+      return calculateOrbitalDiffMean(minReads);
+  }
+
   OrbitalReading calculateAverageVelocity(OrbitalReading dst0)
   {
-      // Storage object
-      OrbitalReading velocity;
-
       // Divide each delta coordinate by the delta time
-      velocity->mCoord[0] = dst0->mCoord[0]/dst0->mTime;
-      velocity->mCoord[1] = dst0->mCoord[1]/dst0->mTime;
-      velocity->mCoord[2] = dst0->mCoord[2]/dst0->mTime;
+      OrbitalReading velocity("AverageVelocity", 0,
+              dst0.mCoord[0]/dst0.mTime,
+              dst0.mCoord[1]/dst0.mTime,
+              dst0.mCoord[2]/dst0.mTime);
 
       return velocity;
   }
@@ -199,14 +227,17 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   // This is done by finding time gaps of sufficient size.
   // Interesting to me that in the matlab code, gaps are found
   // *before* sorting by time...isn't this a bug?
-  // Todo:  divideByOrbit(readings);
   std::list< std::list<OrbitalReading> > orbits;
   divideByOrbit(orbits, readings);
 
-  for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
+  std::cout << "Number of orbits: " << orbits.size();
+  /*for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
           read_orb != orbits.end(); ++read_orb)
   {
       std::list<OrbitalReading> orbit = read_orb;
+
+      // remember the minTime that we're about to normalize on, we have to add
+      // it back
 
       // Next, normalize times so that each orbit starts at t=0
       normalizeReadingsByTime(orbit);
@@ -235,6 +266,21 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // st(:,1) is the full set of timestamps for this orbit.
       // so p is a cell with 1 column:
       //  { [averages: x,y,z,v] sM [all timestamps] }
+      std::list<double> p;
+
+      OrbitalReading first = orbit.front();
+      p.push_back(first->mCoord[0]);
+      p.push_back(first->mCoord[1]);
+      p.push_back(first->mCoord[2]);
+      p.push_back(v0);
+      p.push_back(sM);
+
+      // Add the timestamps
+      for (std::list<OrbitalReading>::iterator it = orbit.begin();
+          it != orbit.end(); ++it)
+      {
+          p.push_back(it->mTime);
+      }
 
       
       // dtm = average time delta between all readings in orbit
@@ -276,7 +322,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // It's in the same order as 'readings'
       std::vector<double> r(orbit.size());
       calculateRadialComponents(orbit, r);
-  }
+  }*/
 
 
 
