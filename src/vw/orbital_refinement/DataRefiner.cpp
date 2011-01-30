@@ -42,6 +42,71 @@ namespace
     }
   }
 
+  std::vector<double> calculateDifferences(std::vector<double> initial)
+  {
+      // Correctly size the vector
+      std::vector<double> diffs;
+      diffs.resize(initial.size()-1);
+
+      // Calculate the difference between each pair
+      for (int k =0; k < initial.size()-1; ++k)
+      {
+          diffs[k] = initial[k+1]-initial[k];
+      }
+
+      return diffs;
+  }
+
+  double calculateAverage(std::vector<double> values)
+  {
+      double sum = 0;
+
+      // Sum the values
+      for (int k = 0; k < values.size(); ++k)
+      {
+          sum += values[k];
+      }
+
+      // Return the average
+      return sum/values.size();
+  }
+
+  double getMin(std::vector<double> values)
+  {
+      std::list<double> listMin;
+
+      // Easiest to use a list to do this, so put the values in a list
+      for (int k = 0; k < values.size(); ++k)
+      {
+          listMin.push_back(values[k]);
+      }
+
+      // Sort the list
+      listMin.sort();
+
+      // Return value of the first element
+      return *listMin.begin();
+  }
+
+  OrbitalReading calculateOrbitalDiffMeanWithMin(std::list<OrbitalReading> orbit)
+  {
+      // Set the min value between 5 and the orbit size
+      int min = (5 < orbit.size())? 5 : orbit.size();
+
+      std::list<OrbitalReading> minReads;
+
+      // Grab the first min readings
+      int k = 0;
+      for (std::list<OrbitalReading>::iterator it = orbit.begin();
+          k < min; ++it, ++k)
+      {
+          minReads.push_back(*it);
+      }
+
+      // Pass the min list into the function that really does the work
+      return calculateOrbitalDiffMean(minReads);
+  }
+
   OrbitalReading calculateOrbitalDiffMean(std::list<OrbitalReading> orbit)
   {
       // Now do whatever this means:
@@ -60,8 +125,38 @@ namespace
       // Object to store the differences
       OrbitalReading delta;
 
-      // Set the min value between 5 and the orbit size
-      int min = (5 < orbit.size())? 5 : orbit.size();
+      // Initialize vectors to the correct size for each of time,x,y,z
+      std::vector<double> times;
+      times.resize(orbit.size());
+      std::vector<double> xs;
+      xs.resize(orbit.size());
+      std::vector<double> ys;
+      ys.resize(orbit.size());
+      std::vector<double> zs;
+      zs.resize(orbit.size());
+
+      // Pull out the timestamp and x,y,z into their own vectors
+      int k = 0;
+      for (std::list<OrbitalReading>::iterator it = orbit.begin();
+          it != orbit.end(); ++it, ++k)
+      {
+          times[k] = it->mTime;
+          xs[k] = it->mCoord[0];
+          ys[k] = it->mCoord[1];
+          zs[k] = it->mCoord[2];
+      }
+
+      // Calculate the differences
+      std::vector<double> delta_time = calculateDifferences(times);
+      std::vector<double> delta_x = calculateDifferences(xs);
+      std::vector<double> delta_y = calculateDifferences(ys);
+      std::vector<double> delta_z = calculateDifferences(zs);
+
+      // Calculate the average
+      delta->mTime = calculateAverage(delta_time);
+      delta->mCoord[0] = calculateAverage(delta_x);
+      delta->mCoord[1] = calculateAverage(delta_y);
+      delta->mCoord[2] = calculateAverage(delta_z);
 
       return delta;
   }
@@ -122,7 +217,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       //    [t x y z w src(input file name) prefix(string stripped off of time stamps)
 
       // Now we calculate the mean of differences for each orbit
-      OrbitalReading dst0 = calculateOrbitalDiffMean(orbit);
+      OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(orbit);
 
       // And this:
       //   v0 = dst0(2:4)/dst0(1);
@@ -141,9 +236,24 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // so p is a cell with 1 column:
       //  { [averages: x,y,z,v] sM [all timestamps] }
 
+      
       // dtm = average time delta between all readings in orbit
       // dts = minimum time delta between all readings in orbit
       // dt = dts/100, so it's in hundredths of a second instead of seconds
+      std::vector<double> times;
+      times.resize(orbit.size());
+
+      // Pull out the timestamp into its own vector
+      int k = 0;
+      for (std::list<OrbitalReading>::iterator it = orbit.begin();
+          it != orbit.end(); ++it, ++k)
+      {
+          times[k] = it->mTime;
+      }
+
+      double dtm = calculateAverage(calculateDifferences(times));
+      double dts = getMin(times);
+      double dt = dts/100;
 
       // pb=conv(p(8:end),[0.5 0.5]);
       //  p(8:end) would be all timestamps starting with the 3rd reading.
