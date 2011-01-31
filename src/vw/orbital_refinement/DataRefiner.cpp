@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <cmath>
+#include <limits>
 // For output stream debug, remove these later
 #include <cstdlib>
 #include <iostream>
@@ -20,6 +21,8 @@ namespace
   double sG=G*sGM;
   double sM=M/sGM;
   double GM=G*M;
+  double INF = std::numeric_limits<double>::infinity();
+
 
 
   void divideByOrbit(std::list< std::list<OrbitalReading> >& orbits,
@@ -217,6 +220,93 @@ namespace
       return velocity;
   }
 
+  // Calculates the convolution of two vectors, assuming that the m2 vector
+  // is the smaller of the two vectors.  Pb is used to store the results of
+  // the convolution
+  void convolutionFunction(std::list<double>& pb, std::vector<double> m1,
+          std::vector<double> m2)
+  {
+      // The sum is over all the values of j which lead to legal subscripts for
+      // m2(j) and m1(k+1-j), specifically j = max(1,k+1-n): min(k,m).
+      for (int k = 0; k < m1.size(); k++)
+      {
+          // Reset the sum to zero
+          double temp = 0;
+
+          for (int j = 0; j < m2.size(); j++)
+          {
+              if (k-j >= 0)
+              {
+                // Add the products over j
+                //std::cout << k-j << ", " << j << std::endl;
+                temp += m1[k-j]*m2[j];
+              }
+          }
+
+          // Place the sum into pb, which will be of size m1+m2-1
+          pb.push_back(temp);
+
+          // Add the last piece, which is the last elements of each array at the end
+          if (k == m1.size()-1)
+          {
+              //std::cout << k << ", " << m2.size()-1 << std::endl;
+              pb.push_back( m1[k]*m2[m2.size()-1] );
+          }
+      }
+  }
+
+  void constructUpperBound(std::list<double>& ub, std::list<double> pb,
+          std::list<double> p, double dt, double dtm)
+  {
+      // Add the 6 infinity elements
+      for (int k = 0; k < 6; k++) {
+          ub.push_back(INF);
+      }
+
+      // Add 2*sM
+      ub.push_back(2*sM);
+
+      // Add pb(2:end-1)-dt
+      for (std::list<double>::iterator it = (pb.begin())++;
+          it != (pb.end())--; it++)
+      {
+          ub.push_back(*it-dt);
+      }
+
+      // Add p(end)+dtm
+      ub.push_back(p.back()+dtm);
+  }
+
+  void constructLowerBound(std::list<double>& lb, std::list<double> pb,
+          std::list<double> p, double dt, double dtm)
+  {
+      // Add the 6 infinity elements
+      for (int k = 0; k < 6; k++) {
+          lb.push_back(-INF);
+      }
+
+      // Add sM
+      lb.push_back(sM);
+
+      // Add p(8)-dtm
+      std::list<double>::iterator ptr = p.begin();
+        // Advance the ptr 7 places
+      for (int k = 0; k < 7; k++)
+      {
+          //std::cout << "p@" << k << ": " << *ptr << std::endl;
+          ptr++;
+      }
+      //std::cout << "lb: ptr@8: " << *ptr-dtm << std::endl;
+      lb.push_back(*ptr-dtm);
+
+      // Add pb(2:end-1)+dt
+      for (std::list<double>::iterator it = (pb.begin())++;
+          it != (pb.end())--; it++)
+      {
+          lb.push_back(*it+dt);
+      }
+  }
+
   void calculateRadialComponents(std::list<OrbitalReading>& readings, std::vector<double>& r)
   {
     std::vector<double>::iterator r_it = r.begin();
@@ -265,7 +355,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // Now we calculate the mean of differences for each orbit
       OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(orbit);
 
-      // DEBUG
+      // DEBUG FOR ORBITAL DIFF MEAN WITH MIN
       //std::cout << dst0.mId << ", " << dst0.mTime << ", " << dst0.mCoord[0]
       //        << ", " << dst0.mCoord[1] << ", " << dst0.mCoord[2] << std::endl;
       
@@ -277,7 +367,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       //  for the first 5 readings.
       OrbitalReading v0 = calculateAverageVelocity(dst0);
 
-      // DEBUG
+      // DEBUG FOR AVG VELOCITY
       //std::cout << v0.mId << ", " << v0.mCoord[0]
       //        << ", " << v0.mCoord[1] << ", " << v0.mCoord[2] << std::endl;
 
@@ -327,15 +417,35 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       double dts = getMin(times);
       double dt = dts/100;
 
+      // START OF INITIALIZATION
+
       // pb=conv(p(8:end),[0.5 0.5]);
       //  p(8:end) would be all timestamps 
-      //  I'm not sure what the point is here...not familiar with the math
+      //  Convolution is a mathematical operation on two functions f and g,
+      //  producing a third function that is typically viewed as a modified
+      //  version of one of the original functions
+      std::list<double> pb;
+      std::vector<double> halfMatrix(2, 0.5);
+      convolutionFunction(pb, times, halfMatrix);
+
+      // DEBUG FOR CONVOLUTION
+      /*int j = 1;
+      std::cout << "Orbit size: " << orbit.size() << std::endl;
+      for (std::list<double>::iterator it = pb.begin();
+          it != pb.end(); it++, j++)
+      {
+          std::cout << j << ", " << *it << std::endl;
+      }*/
 
       // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
       //   upper bound (of???)
+      std::list<double> ub;
+      constructUpperBound(ub, pb, p, dt, dtm);
 
       // lb= [-inf*ones(6,1);   sM;   p(8)-dtm; pb(2:end-1)+dt];
       //   lower bound (of???)
+      std::list<double> lb;
+      constructLowerBound(lb, pb, p, dt, dtm);
 
       //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
       //  Solves a non-linear least squares problem.
