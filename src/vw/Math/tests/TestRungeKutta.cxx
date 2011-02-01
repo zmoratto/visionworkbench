@@ -22,14 +22,13 @@ double my_derivative(double x, double y)
 TEST( RungeKutta, SimpleRungeKutta )
 {
   // use Runge-Kutta to evaluate f(x) = sin(x) + 2.2
-  double y = 2.2;
   double dx = .2;
 
   RungeKutta rk;
   for (double x = 0; x < 10; x += dx)
   {
-    double new_val = rk.solve(x, y, dx, my_derivative);
-    EXPECT_NEAR(new_val, sin(x) + 2.2, 1e-3);
+    double new_val = rk.solve(x, sin(x) + 2.2, dx, my_derivative);
+    EXPECT_NEAR(new_val, sin(x+dx) + 2.2, 1e-3);
   }
 }
 
