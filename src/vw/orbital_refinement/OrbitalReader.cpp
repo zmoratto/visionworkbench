@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <set>
+#include <cstdlib>
 
 #include "OrbitalReader.hpp"
 #include "OrbitalReading.hpp"
