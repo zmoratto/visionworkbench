@@ -1,13 +1,16 @@
 
 
 #### Compiler and tool definitions shared by all build targets #####
+VW_ROOT=../..
+
 CCC = g++
 CXX = g++
-BASICOPTS = -g
+BASICOPTS = -g -I$(VW_ROOT)
 CCFLAGS = $(BASICOPTS)
 CXXFLAGS = $(BASICOPTS)
 CCADMIN =
 PREFIX = @
+
 
 
 # Define the target directories.
@@ -18,7 +21,8 @@ SRCS = \
   main.cpp \
   OrbitalReader.cpp \
   OrbitalWriter.cpp \
-  DataRefiner.cpp
+  DataRefiner.cpp \
+  TrajectoryCalculator.cpp
 
 
 all: $(TARGETDIR)/$(EXE_NAME)
@@ -27,7 +31,7 @@ OBJS = $(SRCS:%.cpp= $(TARGETDIR)/%.o)
 DEPS = $(SRCS:%.cpp= $(TARGETDIR)/%.d)
 
 SYSLIBS = -lm 
-USERLIBS = $(SYSLIBS) 
+USERLIBS = $(SYSLIBS) $(VW_ROOT)/vw/Math/libvwMath.la
 DEPLIBS =  
 LDLIBS = $(USERLIBS)
 
