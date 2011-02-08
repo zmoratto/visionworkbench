@@ -433,6 +433,7 @@ AX_MODULE(GEOMETRY,         [src/vw/Geometry],         [libvwGeometry.la],      
 AX_MODULE(PHOTOMETRY,       [src/vw/Photometry],       [libvwPhotometry.la],        no, [CARTOGRAPHY VW], [BOOST_FILESYSTEM BOOST_PROGRAM_OPTIONS])
 AX_MODULE(BUNDLEADJUSTMENT, [src/vw/BundleAdjustment], [libvwBundleAdjustment.la], yes, [CAMERA CARTOGRAPHY INTERESTPOINT STEREO VW])
 AX_MODULE(PLATE,            [src/vw/Plate],            [libvwPlate.la],             no, [CARTOGRAPHY VW], [RABBITMQ_C PROTOBUF BOOST_FILESYSTEM BOOST_REGEX BOOST_IOSTREAMS BOOST_PROGRAM_OPTIONS THREADS])
+AX_MODULE(ORBITALREFINE,    [src/vw/orbital_refinement],[libvwOrbitalRefine.la],   yes, [CORE MATH])
 AX_MODULE(TOOLS,            [src/vw/tools],            [],                         yes, [VW], [BOOST_FILESYSTEM BOOST_PROGRAM_OPTIONS THREADS])
 AX_MODULE(GUI,              [src/vw/gui],              [],                          no, [PLATE VW], [QT BOOST_PROGRAM_OPTIONS GL])
 AX_MODULE_PYTHON(           [src/vw/Python], [no])
@@ -460,6 +461,7 @@ AM_CONDITIONAL(MAKE_MODULE_GEOMETRY,         [test "$MAKE_MODULE_GEOMETRY" = "ye
 AM_CONDITIONAL(MAKE_MODULE_PHOTOMETRY,       [test "$MAKE_MODULE_PHOTOMETRY" = "yes"])
 AM_CONDITIONAL(MAKE_MODULE_BUNDLEADJUSTMENT, [test "$MAKE_MODULE_BUNDLEADJUSTMENT" = "yes"])
 AM_CONDITIONAL(MAKE_MODULE_PLATE,            [test "$MAKE_MODULE_PLATE" = "yes"])
+AM_CONDITIONAL(MAKE_MODULE_ORBITALREFINE,    [test "$MAKE_MODULE_ORBITALREFINE" = "yes"])
 AM_CONDITIONAL(MAKE_MODULE_TOOLS,            [test "$MAKE_MODULE_TOOLS" = "yes"])
 AM_CONDITIONAL(MAKE_MODULE_GUI,              [test "$MAKE_MODULE_GUI" = "yes"])
 AM_CONDITIONAL(MAKE_MODULE_PYTHON,           [test "$MAKE_MODULE_PYTHON" = "yes"])
@@ -536,6 +538,7 @@ AC_CONFIG_FILES([                       \
   src/vw/Python/Makefile                \
   src/vw/BundleAdjustment/Makefile      \
   src/vw/BundleAdjustment/tests/Makefile \
+  src/vw/orbital_refinement/Makefile    \
 ])
 
 AC_OUTPUT

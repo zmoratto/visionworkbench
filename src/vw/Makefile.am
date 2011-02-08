@@ -96,6 +96,10 @@ if MAKE_MODULE_PYTHON
 python_subdirs = Python
 endif
 
+if MAKE_MODULE_ORBITALREFINE
+orbitalrefine_subdirs = orbital_refinement
+endif
+
 include_HEADERS = \
   $(core_headers) \
   $(math_headers) \
@@ -133,6 +137,7 @@ SUBDIRS = \
   $(photometry_subdirs) \
   $(plate_subdirs) \
   $(bundleadjustment_subdirs) \
+  $(orbitalrefine_subdirs) \
   $(gui_subdirs) \
   $(python_subdirs) \
   $(tools_subdirs)
