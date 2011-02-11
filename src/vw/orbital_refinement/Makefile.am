@@ -42,7 +42,7 @@ endif
 AM_CPPFLAGS = @VW_CPPFLAGS@
 AM_LDFLAGS = @VW_LDFLAGS@
 
-SUBDIRS = .
+SUBDIRS = . tests
 
 includedir = $(prefix)/include/vw/orbital_refinement
 
