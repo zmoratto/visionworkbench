@@ -1,7 +1,7 @@
-#include "TrajectoryCalculator.hpp"
-#include <vw/Math/RungeKutta.h>
 
-#include "GravityAccelerationFunctor.hpp"
+#include <vw/Math/RungeKutta.h>
+#include <vw/orbital_refinement/TrajectoryCalculator.hpp>
+#include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 
 namespace
 {

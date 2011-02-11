@@ -2,7 +2,7 @@
 #define TRAJECTORY_CALCULATOR_HPP
 
 #include <vw/Math/Vector.h>
-#include "OrbitalReading.hpp"
+#include <vw/orbital_refinement/OrbitalReading.hpp>
 
 class GravityAccelerationFunctor;
 

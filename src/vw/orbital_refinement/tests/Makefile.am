@@ -23,8 +23,8 @@ endif
 # general
 ########################################################################
 
-AM_CPPFLAGS = @VW_CPPFLAGS@
-AM_LDFLAGS  = @VW_LDFLAGS@ @PKG_MATH_LIBS@ @MODULE_ORBITALREFINE_LIBS@
+AM_CPPFLAGS = @VW_CPPFLAGS@ $(TEST_CPPFLAGS)
+AM_LDFLAGS  = @VW_LDFLAGS@ @PKG_MATH_LIBS@ @PKG_ORBITALREFINE_LIBS@
 
 check_PROGRAMS = $(TESTS)
 
