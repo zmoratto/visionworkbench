@@ -8,6 +8,9 @@ namespace GravityConstants
     //! Gravitational Constant for the moon's mass,
     //! in m^3/s^2
     const double GM_MOON = 6.67259e-11*7.36e22;
+    //! Gravitational Constant for the moon's mass,
+    //! in m^3/millisecond^2
+    const double GM_MOON_MILLISECOND = 6.67259e-11*7.36e22/1e6;
 }
 
 
