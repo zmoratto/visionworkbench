@@ -11,9 +11,10 @@
 
 if MAKE_MODULE_ORBITALREFINE
 
-TestTrajectoryCalculator_SOURCES      = TestTrajectoryCalculator.cpp
+TestTrajectoryCalculator_SOURCES       = TestTrajectoryCalculator.cpp
+TestGravityAccelerationFunctor_SOURCES = TestGravityAccelerationFunctor.cpp
 
-TESTS = TestTrajectoryCalculator
+TESTS = TestTrajectoryCalculator TestGravityAccelerationFunctor
 
 #include $(top_srcdir)/config/instantiate.am
 
