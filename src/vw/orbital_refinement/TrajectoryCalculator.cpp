@@ -3,6 +3,8 @@
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 
+#include <iostream>
+
 namespace
 {
     struct PositionVelocity
@@ -42,13 +44,10 @@ namespace
                            OrbitalReading::timestamp_t time)
     {
       PositionVelocity pv;
-        // Remember, time is in milliseconds.
-      pv.velocity = va.acceleration * time / 1000;
-      pv.position = (va.velocity + .5*pv.velocity)*time / 1000;
+      pv.velocity = va.acceleration * (double)time;
+      pv.position = (va.velocity + .5*pv.velocity)*(double)time;
       return pv;
     }
-    
-
     
     struct GravityAdapter
     {
@@ -85,7 +84,9 @@ void TrajectoryCalculator::calculateNextPoint(
 {
   vw::math::RungeKutta rk;
 
-  GravityAccelerationFunctor grav_func(GravityConstants::GM_MOON);
+    // use milliseconds because our time values are in milliseconds.
+    // this means our velocities will also be in milliseconds.
+  GravityAccelerationFunctor grav_func(GravityConstants::GM_MOON_MILLISECOND);
   GravityAdapter grav_adapter(grav_func);
   PositionVelocity start_state;
   start_state.position = cur_location;
