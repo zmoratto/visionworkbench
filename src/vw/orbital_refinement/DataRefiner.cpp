@@ -1,7 +1,10 @@
 #include "DataRefiner.hpp"
 #include "OrbitalReading.hpp"
+#include "GravityAccelerationFunctor.hpp"
+
 #include <list>
 
+#include <vw/Math/Vector.h>
 #include <vector>
 #include <cmath>
 #include <limits>
@@ -332,20 +335,20 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   // This is done by finding time gaps of sufficient size.
   // Interesting to me that in the matlab code, gaps are found
   // *before* sorting by time...isn't this a bug?
-  std::list< std::list<OrbitalReading> > orbits;
+  /*std::list< std::list<OrbitalReading> > orbits;
   divideByOrbit(orbits, readings);
 
   for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
           read_orb != orbits.end(); ++read_orb)
   {
-      std::list<OrbitalReading> orbit = *read_orb;
+      std::list<OrbitalReading>& orbit = *read_orb;*/
 
-      // Remember the minTime that we're about to normalize on, we have to add
-      // it back
-      double minTime = orbit.front().mTime;
+      // Remember the minTime that we're about to normalize on, we have to use
+      // it later
+      double minTime = readings.front().mTime;
 
       // Next, normalize times so that each orbit starts at t=0
-      normalizeReadingsByTime(orbit);
+      normalizeReadingsByTime(readings);
 
       // In the matlab file:
       //  st is the data for a single orbit.  It has one row per reading,
@@ -353,7 +356,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       //    [t x y z w src(input file name) prefix(string stripped off of time stamps)
 
       // Now we calculate the mean of differences for each orbit
-      OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(orbit);
+      OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(readings);
 
       // DEBUG FOR ORBITAL DIFF MEAN WITH MIN
       //std::cout << dst0.mId << ", " << dst0.mTime << ", " << dst0.mCoord[0]
@@ -382,7 +385,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       //  { [averages: x,y,z,v] sM [all timestamps] }
       std::list<double> p;
 
-      OrbitalReading first = orbit.front();
+      OrbitalReading first = readings.front();
       p.push_back(first.mCoord[0]);
       p.push_back(first.mCoord[1]);
       p.push_back(first.mCoord[2]);
@@ -392,8 +395,8 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       p.push_back(sM);
 
       // Add the timestamps
-      for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          it != orbit.end(); it++)
+      for (std::list<OrbitalReading>::iterator it = readings.begin();
+          it != readings.end(); it++)
       {
           p.push_back(it->mTime);
       }
@@ -403,12 +406,12 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       // dts = minimum time delta between all readings in orbit
       // dt = dts/100, so it's in hundredths of a second instead of seconds
       std::vector<double> times;
-      times.resize(orbit.size());
+      times.resize(readings.size());
 
       // Pull out the timestamp into its own vector
       int k = 0;
-      for (std::list<OrbitalReading>::iterator it = orbit.begin();
-          it != orbit.end(); it++, k++)
+      for (std::list<OrbitalReading>::iterator it = readings.begin();
+          it != readings.end(); it++, k++)
       {
           times[k] = it->mTime;
       }
@@ -448,17 +451,35 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       constructLowerBound(lb, pb, p, dt, dtm);
 
       //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
-      //  Solves a non-linear least squares problem.
-      // I think this is where CG comes in?  I think this least squares method is minimizing a function, which is
-      // what CG would do, but using a different method?
+      //  This really boils down to calculating the acceleration of each coordinate
 
+      //  First grab all the positions and corresponding velocities out of p
+      vw::Vector3 position;
+      position.set_size(3);
+
+      vw::Vector3 velocity;
+      velocity.set_size(3);
+
+      std::list<double>::iterator it = p.begin();
+      // The first 3 are position values
+      for (int k = 0; k < 3; k++, it++) {
+          position[k] = *it;
+      }
+      // The next 3 are velocity values
+      for (int k = 0; k < 3; k++, it++) {
+          velocity[k] = *it;
+      }
+
+      // Calculate the acceleration at the given position
+      GravityAccelerationFunctor grav_func(GravityConstants::GM_MOON);
+      vw::Vector3 acceleration = grav_func(position);
 
 /*
       // Calculate the radial component of each reading.
       // It's in the same order as 'readings'
       std::vector<double> r(orbit.size());
       calculateRadialComponents(orbit, r);*/
-  }
+  //}
 
 
 
