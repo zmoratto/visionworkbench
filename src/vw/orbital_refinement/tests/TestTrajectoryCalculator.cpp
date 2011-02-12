@@ -31,7 +31,7 @@ TEST( TrajectorCalculator, CircularOrbit ) {
   OrbitalReading::timestamp_t delta_t = 20000;
 
   // Number of readings to do a full revolution
-  std::size_t reading_count = (std::size_t)(period/delta_t);
+  int reading_count = (int)(period/delta_t);
 
   // Now re-adjust the time delta so we do an exact revolution
   delta_t = period / reading_count;
@@ -44,6 +44,10 @@ TEST( TrajectorCalculator, CircularOrbit ) {
   Vector3 p_next;
   Vector3 v_next;
 
+  // Print out initial position and velocity:
+//   std::cout << "\nInitial Position: " << p0 << std::endl;
+//   std::cout << "Initial Velocity: " << v0 << std::endl;
+
   // Now we should move in a circle in the z=0 plane.
   // constant radius
   GravityAccelerationFunctor gravity;
@@ -55,26 +59,35 @@ TEST( TrajectorCalculator, CircularOrbit ) {
     // as the starting radius.
     double r_next =
       sqrt(math::dot_prod(p_next, p_next));
-    EXPECT_NEAR(r_next, r0, 1000);
+    EXPECT_NEAR(r_next, r0, 100);
 
     // the speed should be about the same as the starting speed
     double s_next =
       sqrt(math::dot_prod(v_next, v_next));
     EXPECT_NEAR(s_next, s0, 1);
 
-    // The velocity should be orthogonal to the position vector.
-    
+    // The position should be in the z=0 plane
+    EXPECT_EQ(p_next[2], 0);
 
-    std::cout << "For iteration " << i << ":\n";
-    std::cout << "  v_next is " << v_next << std::endl;
-    std::cout << "  r0=" << r0 << std::endl;
-    std::cout << "  r_next=" << r_next << std::endl;
-    std::cout << "  r_diff = " << r_next-r0 << std::endl;
-    std::cout << "  s0=" << s0 << std::endl;
-    std::cout << "  s_next=" << s_next << std::endl;
-    std::cout << "  s_diff = " << s_next-s0 << std::endl;
+    // The position should be the appropriate proportion around the circle
+    double angle = PI/2 - 2*PI*(i+1)/reading_count;
+    EXPECT_NEAR(p_next[0]/r_next, cos(angle), .01);
+    EXPECT_NEAR(p_next[1]/r_next, sin(angle), .01);
+
+//     std::cout << "For iteration " << i << ":\n";
+//     std::cout << "  v_next is " << v_next << std::endl;
+//     std::cout << "  r0=" << r0 << std::endl;
+//     std::cout << "  r_next=" << r_next << std::endl;
+//     std::cout << "  r_diff = " << r_next-r0 << std::endl;
+//     std::cout << "  s0=" << s0 << std::endl;
+//     std::cout << "  s_next=" << s_next << std::endl;
+//     std::cout << "  s_diff = " << s_next-s0 << std::endl;
     
     p0 = p_next;
     v0 = v_next;
   }
+
+  // print out the final positions.
+//   std::cout << "\nFinal Position: " << p0 << std::endl;
+//   std::cout << "Final Velocity: " << v0 << std::endl;
 }

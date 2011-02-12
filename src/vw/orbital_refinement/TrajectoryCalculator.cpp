@@ -45,7 +45,7 @@ namespace
     {
       PositionVelocity pv;
       pv.velocity = va.acceleration * (double)time;
-      pv.position = (va.velocity + .5*pv.velocity)*(double)time;
+      pv.position = va.velocity*(double)time;
       return pv;
     }
     

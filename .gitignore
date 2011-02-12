@@ -174,10 +174,12 @@ docs/workbook/workbook.toc
 /src/vw/Math/tests/TestParticleSwarmOptimization
 /src/vw/Math/tests/TestPoseEstimation
 /src/vw/Math/tests/TestQuaternion
+/src/vw/Math/tests/TestRungeKutta
 /src/vw/Math/tests/TestVector
 /src/vw/Mosaic/tests/TestImageComposite
 /src/vw/orbital_refinement/or_utility
 /src/vw/orbital_refinement/tests/TestTrajectoryCalculator
+/src/vw/orbital_refinement/tests/TestGravityAccelerationFunctor
 /src/vw/Plate/hirise2tif
 /src/vw/Plate/image2plate
 /src/vw/Plate/index_client
