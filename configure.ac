@@ -539,6 +539,7 @@ AC_CONFIG_FILES([                       \
   src/vw/BundleAdjustment/Makefile      \
   src/vw/BundleAdjustment/tests/Makefile \
   src/vw/orbital_refinement/Makefile    \
+  src/vw/orbital_refinement/tests/Makefile \
 ])
 
 AC_OUTPUT
