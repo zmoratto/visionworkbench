@@ -1,6 +1,7 @@
 #include "DataRefiner.hpp"
 #include "OrbitalReading.hpp"
-#include "GravityAccelerationFunctor.hpp"
+#include <vw/orbital_refinement/TrajectoryCalculator.hpp>
+#include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 
 #include <list>
 
@@ -26,58 +27,6 @@ namespace
   double GM=G*M;
   double INF = std::numeric_limits<double>::infinity();
 
-
-
-  void divideByOrbit(std::list< std::list<OrbitalReading> >& orbits,
-          std::list<OrbitalReading> readings)
-  {
-      // Sort the readings by timestamp.
-      readings.sort(OrbitalReading::TimestampLess());
-
-      std::list<OrbitalReading> tempOrbit;
-      
-      // Iterate through all the readings
-      int k = 1;
-      for (std::list<OrbitalReading>::iterator it = readings.begin();
-            it != readings.end(); it++)
-      {
-          // If the tempOrbit is empty, add the reading we're on
-          if (tempOrbit.empty())
-              tempOrbit.push_back(*it);
-          else
-          {
-              // Otherwise, check if the difference between the current reading
-              // and the first reading in the orbit is within the 3300 second range (or 3300000 ms)
-              // If it is, add it to the tempOrbit
-              if ((it->mTime - tempOrbit.front().mTime) < 3300000 )
-                  tempOrbit.push_back(*it);
-              // Otherwise...
-              else
-              {
-                  // Add the tempOrbit to the orbits list
-                  orbits.push_back(tempOrbit);
-                  // Clear the tempOrbit, then add the current reading as the first
-                  // of the next set of orbits
-
-                  /* DEBUG
-                  std::cout << "new orbit ----------" << std::endl;
-                  for (std::list<OrbitalReading>::iterator is = tempOrbit.begin();
-                        is != tempOrbit.end(); is++)
-                  {
-                      std::cout << k << ", " << is->mTime << std::endl;
-                      k++;
-                  }
-                  std::cout << std::endl; */
-                  tempOrbit.clear();
-                  tempOrbit.push_back(*it);
-              }
-          }
-
-      }
-
-      // We still have the last tempOrbit, so push it back to orbits
-      orbits.push_back(tempOrbit);
-  }
 
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
   {
@@ -310,6 +259,67 @@ namespace
       }
   }
 
+  void estimateTrajectory(vw::Vector3 p0, vw::Vector3 v0, std::vector<double> times,
+          std::list<vw::Vector3>& est_pos) {
+      
+      // Initialize the calculator
+      GravityAccelerationFunctor gravity;
+      TrajectoryCalculator calc(gravity);
+
+      // Set our initial set of data
+      vw::Vector3 this_pos = p0;
+      vw::Vector3 this_vel = v0;
+
+      // Go through the list of timestamps, and estimate the position and
+      // velocity at each data point
+      for (std::vector<double>::iterator t_it = (times.begin())++;
+              t_it != times.end(); t_it++) {
+          // New pointers for the next position and velocity
+          vw::Vector3 next_pos;
+          vw::Vector3 next_vel;
+
+          // Calculate the delta time
+          std::vector<double>::iterator p_it = t_it--;
+          double delta = *t_it - *p_it;
+
+          // Calculate the next point with Runge Kutta
+          calc.calculateNextPoint(this_pos, this_vel, delta, next_pos, next_vel);
+
+          // Set this_pos and this_vel for the next iteration
+          this_pos = next_pos;
+          this_vel = next_vel;
+
+          // Record the estimated position
+          est_pos.push_back(next_pos);
+      }
+  }
+
+  void calculatePositionError(std::list<OrbitalReading> orig, std::list<vw::Vector3> est,
+          std::list<vw::Vector3>& errors) {
+      
+      // The number of original and estimated readings should match each other, 
+      // otherwise there is a problem
+      if( orig.size() != est.size() ) {
+          std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
+          exit(1);
+      }
+
+      std::list<vw::Vector3>::iterator est_it = est.begin();
+
+      for (std::list<OrbitalReading>::iterator orig_it = orig.begin();
+         orig_it != orig.end(); orig_it++, est_it++) {
+
+          // Calculate the error at this point
+          vw::Vector3 error((*est_it)[0]-(*orig_it).mCoord[0],
+                            (*est_it)[1]-(*orig_it).mCoord[1],
+                            (*est_it)[2]-(*orig_it).mCoord[2]);
+
+          // Save the error
+          errors.push_back(error);
+      }
+
+  }
+
   void calculateRadialComponents(std::list<OrbitalReading>& readings, std::vector<double>& r)
   {
     std::vector<double>::iterator r_it = r.begin();
@@ -331,157 +341,163 @@ namespace
 
 bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
 {
-  // divide readings into orbits
-  // This is done by finding time gaps of sufficient size.
-  // Interesting to me that in the matlab code, gaps are found
-  // *before* sorting by time...isn't this a bug?
-  /*std::list< std::list<OrbitalReading> > orbits;
-  divideByOrbit(orbits, readings);
+  // Remember the minTime that we're about to normalize on, we have to use
+  // it later
+  double minTime = readings.front().mTime;
 
-  for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
-          read_orb != orbits.end(); ++read_orb)
+  // Next, normalize times so that it starts at t=0
+  normalizeReadingsByTime(readings);
+
+  // In the matlab file:
+  //  st is the data for a single orbit.  It has one row per reading,
+  //  in this format:
+  //    [t x y z w src(input file name) prefix(string stripped off of time stamps)
+
+  // Now we calculate the mean of differences for each orbit
+  OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(readings);
+
+  // DEBUG FOR ORBITAL DIFF MEAN WITH MIN
+  //std::cout << dst0.mId << ", " << dst0.mTime << ", " << dst0.mCoord[0]
+  //        << ", " << dst0.mCoord[1] << ", " << dst0.mCoord[2] << std::endl;
+
+  // And this:
+  //   v0 = dst0(2:4)/dst0(1);
+  //  dst0(1) is the average time delta
+  //  dst0(2:4) is the average x, y,and z deltas
+  //  so v0 is the average velocity in x, y, and z
+  //  for the first 5 readings.
+  OrbitalReading v0 = calculateAverageVelocity(dst0);
+
+  // DEBUG FOR AVG VELOCITY
+  //std::cout << v0.mId << ", " << v0.mCoord[0]
+  //        << ", " << v0.mCoord[1] << ", " << v0.mCoord[2] << std::endl;
+
+
+  //     p = [[st(1,2:4) v0]'; sM; st(:,1)];
+  // st(1,2:4) is the first reading's x,y,z.
+  // v0 is the x,y,z velocity estimated from first
+  //   5 readings.
+  // sM is a pre-defined constant, scaled Mass
+  // st(:,1) is the full set of timestamps for this orbit.
+  // so p is a cell with 1 column:
+  //  { [x,y,z, average velocities] sM [all timestamps] }
+  std::list<double> p;
+
+  OrbitalReading first = readings.front();
+  p.push_back(first.mCoord[0]);
+  p.push_back(first.mCoord[1]);
+  p.push_back(first.mCoord[2]);
+  p.push_back(v0.mCoord[0]);
+  p.push_back(v0.mCoord[1]);
+  p.push_back(v0.mCoord[2]);
+  p.push_back(sM);
+
+  // Add the timestamps
+  for (std::list<OrbitalReading>::iterator it = readings.begin();
+      it != readings.end(); it++)
   {
-      std::list<OrbitalReading>& orbit = *read_orb;*/
-
-      // Remember the minTime that we're about to normalize on, we have to use
-      // it later
-      double minTime = readings.front().mTime;
-
-      // Next, normalize times so that each orbit starts at t=0
-      normalizeReadingsByTime(readings);
-
-      // In the matlab file:
-      //  st is the data for a single orbit.  It has one row per reading,
-      //  in this format:
-      //    [t x y z w src(input file name) prefix(string stripped off of time stamps)
-
-      // Now we calculate the mean of differences for each orbit
-      OrbitalReading dst0 = calculateOrbitalDiffMeanWithMin(readings);
-
-      // DEBUG FOR ORBITAL DIFF MEAN WITH MIN
-      //std::cout << dst0.mId << ", " << dst0.mTime << ", " << dst0.mCoord[0]
-      //        << ", " << dst0.mCoord[1] << ", " << dst0.mCoord[2] << std::endl;
-      
-      // And this:
-      //   v0 = dst0(2:4)/dst0(1);
-      //  dst0(1) is the average time delta
-      //  dst0(2:4) is the average x, y,and z deltas
-      //  so v0 is the average velocity in x, y, and z
-      //  for the first 5 readings.
-      OrbitalReading v0 = calculateAverageVelocity(dst0);
-
-      // DEBUG FOR AVG VELOCITY
-      //std::cout << v0.mId << ", " << v0.mCoord[0]
-      //        << ", " << v0.mCoord[1] << ", " << v0.mCoord[2] << std::endl;
-
-      
-      //     p = [[st(1,2:4) v0]'; sM; st(:,1)];
-      // st(1,2:4) is the first reading's x,y,z.
-      // v0 is the x,y,z velocity estimated from first
-      //   5 readings.
-      // sM is a pre-defined constant, scaled Mass
-      // st(:,1) is the full set of timestamps for this orbit.
-      // so p is a cell with 1 column:
-      //  { [averages: x,y,z,v] sM [all timestamps] }
-      std::list<double> p;
-
-      OrbitalReading first = readings.front();
-      p.push_back(first.mCoord[0]);
-      p.push_back(first.mCoord[1]);
-      p.push_back(first.mCoord[2]);
-      p.push_back(v0.mCoord[0]);
-      p.push_back(v0.mCoord[1]);
-      p.push_back(v0.mCoord[2]);
-      p.push_back(sM);
-
-      // Add the timestamps
-      for (std::list<OrbitalReading>::iterator it = readings.begin();
-          it != readings.end(); it++)
-      {
-          p.push_back(it->mTime);
-      }
+      p.push_back(it->mTime);
+  }
 
 
-      // dtm = average time delta between all readings in orbit
-      // dts = minimum time delta between all readings in orbit
-      // dt = dts/100, so it's in hundredths of a second instead of seconds
-      std::vector<double> times;
-      times.resize(readings.size());
+  // dtm = average time delta between all readings in orbit
+  // dts = minimum time delta between all readings in orbit
+  // dt = dts/100, so it's in hundredths of a second instead of seconds
+  std::vector<double> times;
+  times.resize(readings.size());
 
-      // Pull out the timestamp into its own vector
-      int k = 0;
-      for (std::list<OrbitalReading>::iterator it = readings.begin();
-          it != readings.end(); it++, k++)
-      {
-          times[k] = it->mTime;
-      }
+  // Pull out the timestamp into its own vector
+  int k = 0;
+  for (std::list<OrbitalReading>::iterator it = readings.begin();
+      it != readings.end(); it++, k++)
+  {
+      times[k] = it->mTime;
+  }
 
-      double dtm = calculateAverage(calculateDifferences(times));
-      double dts = getMin(times);
-      double dt = dts/100;
+/*  double dtm = calculateAverage(calculateDifferences(times));
+  double dts = getMin(times);
+  double dt = dts/100;
 
-      // START OF INITIALIZATION
+  // START OF INITIALIZATION
 
-      // pb=conv(p(8:end),[0.5 0.5]);
-      //  p(8:end) would be all timestamps 
-      //  Convolution is a mathematical operation on two functions f and g,
-      //  producing a third function that is typically viewed as a modified
-      //  version of one of the original functions
-      std::list<double> pb;
-      std::vector<double> halfMatrix(2, 0.5);
-      convolutionFunction(pb, times, halfMatrix);
+  // pb=conv(p(8:end),[0.5 0.5]);
+  //  p(8:end) would be all timestamps
+  //  Convolution is a mathematical operation on two functions f and g,
+  //  producing a third function that is typically viewed as a modified
+  //  version of one of the original functions
+  std::list<double> pb;
+  std::vector<double> halfMatrix(2, 0.5);
+  convolutionFunction(pb, times, halfMatrix);
 
-      // DEBUG FOR CONVOLUTION
-      /*int j = 1;
-      std::cout << "Orbit size: " << orbit.size() << std::endl;
-      for (std::list<double>::iterator it = pb.begin();
-          it != pb.end(); it++, j++)
-      {
-          std::cout << j << ", " << *it << std::endl;
-      }*/
+  // DEBUG FOR CONVOLUTION
+  /*int j = 1;
+  std::cout << "Orbit size: " << orbit.size() << std::endl;
+  for (std::list<double>::iterator it = pb.begin();
+      it != pb.end(); it++, j++)
+  {
+      std::cout << j << ", " << *it << std::endl;
+  }
 
-      // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
-      //   upper bound (of???)
-      std::list<double> ub;
-      constructUpperBound(ub, pb, p, dt, dtm);
+  // ub= [ inf*ones(6,1); 2*sM; pb(2:end-1)-dt; p(end)+dtm];
+  //   upper bound (of???)
+  std::list<double> ub;
+  constructUpperBound(ub, pb, p, dt, dtm);
 
-      // lb= [-inf*ones(6,1);   sM;   p(8)-dtm; pb(2:end-1)+dt];
-      //   lower bound (of???)
-      std::list<double> lb;
-      constructLowerBound(lb, pb, p, dt, dtm);
+  // lb= [-inf*ones(6,1);   sM;   p(8)-dtm; pb(2:end-1)+dt];
+  //   lower bound (of???)
+  std::list<double> lb;
+  constructLowerBound(lb, pb, p, dt, dtm); */
 
-      //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
-      //  This really boils down to calculating the acceleration of each coordinate
+  //  [p,resnorm,residual,exitflag,output,lambda]=lsqnonlin(@(p)mbrOrbRefOi(p,st,sG),p,lb,ub,options);
+  //  This really boils down to calculating the acceleration of each coordinate
 
-      //  First grab all the positions and corresponding velocities out of p
-      vw::Vector3 position;
-      position.set_size(3);
+  //  First grab all the positions and corresponding velocities out of p
+  vw::Vector3 position;
+  position.set_size(3);
 
-      vw::Vector3 velocity;
-      velocity.set_size(3);
+  vw::Vector3 velocity;
+  velocity.set_size(3);
 
-      std::list<double>::iterator it = p.begin();
-      // The first 3 are position values
-      for (int k = 0; k < 3; k++, it++) {
-          position[k] = *it;
-      }
-      // The next 3 are velocity values
-      for (int k = 0; k < 3; k++, it++) {
-          velocity[k] = *it;
-      }
+  std::list<double>::iterator it = p.begin();
+  // The first 3 are position values
+  for (int k = 0; k < 3; k++, it++) {
+      position[k] = *it;
+  }
+  // The next 3 are velocity values
+  for (int k = 0; k < 3; k++, it++) {
+      velocity[k] = *it;
+  }
 
-      // Calculate the acceleration at the given position
-      GravityAccelerationFunctor grav_func(GravityConstants::GM_MOON);
-      vw::Vector3 acceleration = grav_func(position);
+  std::list<vw::Vector3> est_pos;
+
+  /*
+   * We have the initial acceleration, so now we want to create a for loop
+   * that does this:
+   * 1. Take the first timestamp, and using Runge-Kutta, estimate the next
+   *    position and velocity with the acceleration we just calculated
+   * 2. Store the new position and velocity, because we will use this to
+   *    calculate the error between the estimated and the original values
+   * 3. Calculate the next acceleration value using the position and velocity
+   *    that was just calculated.
+   *
+   * We will want to do this for every timestamp
+   */
+
+  estimateTrajectory(position, velocity, times, est_pos);
+
+  // Now we need to calculate the error between the estimated and original
+  // position values
+  std::list<vw::Vector3> errors;
+
+  calculatePositionError(readings, est_pos, errors);
+
+  
 
 /*
-      // Calculate the radial component of each reading.
-      // It's in the same order as 'readings'
-      std::vector<double> r(orbit.size());
-      calculateRadialComponents(orbit, r);*/
-  //}
-
-
+  // Calculate the radial component of each reading.
+  // It's in the same order as 'readings'
+  std::vector<double> r(orbit.size());
+  calculateRadialComponents(orbit, r);*/
 
   return true;
     
