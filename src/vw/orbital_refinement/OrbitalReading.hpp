@@ -9,6 +9,7 @@
 #define ORBITAL_READING_HPP
 
 #include <string>
+#include <vw/Math/Vector.h>
 
 struct OrbitalReading
 {
@@ -21,16 +22,13 @@ public:
   OrbitalReading(std::string id, timestamp_t time,
     double x, double y, double z) :
     mId(id),
-    mTime(time)
-  {
-    mCoord[0] = x;
-    mCoord[1] = y;
-    mCoord[2] = z;
-  }
+    mTime(time),
+    mCoord(x,y,z)
+  {}
 
   std::string mId;
   timestamp_t mTime;
-  double mCoord[3];
+  vw::Vector3 mCoord;
 
   struct TimestampLess
   {
