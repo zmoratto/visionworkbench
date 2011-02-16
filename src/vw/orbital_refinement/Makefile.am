@@ -8,19 +8,23 @@ lib_LTLIBRARIES =
 
 if MAKE_MODULE_ORBITALREFINE
 
-include_HEADERS =                 \
-  DataRefiner.hpp                 \
-  GravityAccelerationFunctor.hpp  \
-  OrbitalReader.hpp               \
-  OrbitalReading.hpp              \
-  OrbitalWriter.hpp               \
-  TrajectoryCalculator.hpp
+include_HEADERS =                   \
+  DataRefiner.hpp                   \
+  GravityAccelerationFunctor.hpp    \
+  OrbitalReader.hpp                 \
+  OrbitalReading.hpp                \
+  OrbitalWriter.hpp                 \
+  TrajectoryCalculator.hpp          \
+  TrajectoryDecisionVariableSet.hpp \
+  TrajectoryErrorEstimator.hpp      \
+  TrajectoryGradientSet.hpp
 
 libvwOrbitalRefine_la_SOURCES =   \
   DataRefiner.cpp                 \
   OrbitalReader.cpp               \
   OrbitalWriter.cpp               \
-  TrajectoryCalculator.cpp
+  TrajectoryCalculator.cpp        \
+  TrajectoryErrorEstimator.cpp
 
 libvwOrbitalRefine_la_LIBADD = @MODULE_ORBITALREFINE_LIBS@
 libvwOrbitalRefine_la_LDFLAGS = @VW_LDFLAGS@ $(LIBTOOL_LIB_FLAGS)
