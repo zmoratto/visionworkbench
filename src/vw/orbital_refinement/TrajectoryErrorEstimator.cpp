@@ -12,9 +12,13 @@ TrajectoryErrorEstimator::TrajectoryErrorEstimator(
 }
 
 TrajectoryErrorEstimator::result_type
-TrajectoryErrorEstimator::operator()(const domain_type& x)
+TrajectoryErrorEstimator::operator()(const domain_type& x) const
 {
-  return calculateError(x.GM, x.p0, x.v0, x.timestamps, true);
+    // This isn't actually a const function because it caches the
+    // gradient information.
+    // Do a const cast.
+  return const_cast<TrajectoryErrorEstimator*>(this)->
+      calculateError(x.GM, x.p0, x.v0, x.timestamps, true);
 }
 
 TrajectoryErrorEstimator::result_type
@@ -119,4 +123,9 @@ TrajectoryErrorEstimator::gradient_type
 TrajectoryErrorEstimator::gradient( domain_type const& x ) const
 {
   return _gradient;
+}
+
+unsigned TrajectoryErrorEstimator::dimension() const
+{
+  return _gradient.t.size() + 7;
 }

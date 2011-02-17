@@ -16,7 +16,10 @@ struct TrajectoryDecisionVariableSet
                                 const vw::Vector3& p0_in,
                                 const vw::Vector3& v0_in,
                                 const std::list<OrbitalReading>& observations);
+
+  TrajectoryDecisionVariableSet();
 };
+
 
 TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet(
     double GM_in,
@@ -32,5 +35,8 @@ TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet(
     timestamps.push_back(it->mTime);
 }
 
+TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet() 
+{}
+  
 
 #endif

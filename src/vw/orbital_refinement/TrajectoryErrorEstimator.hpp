@@ -23,7 +23,7 @@ public:
   TrajectoryErrorEstimator(const std::list<OrbitalReading>& observations);
 
   /// Evaluate the error for the given set of decision variables.
-  result_type operator()(const domain_type& x);
+  result_type operator()(const domain_type& x) const;
 
   /// Evaluate the gradient for the given set of decision variables.
   gradient_type gradient( domain_type const& x ) const;
