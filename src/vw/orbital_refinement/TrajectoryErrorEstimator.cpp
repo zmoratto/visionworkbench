@@ -27,7 +27,7 @@ TrajectoryErrorEstimator::calculateError(
     const std::vector<OrbitalReading::timestamp_t>& t, bool calculate_gradient)
 {
     // Prepare an appropriate trajectory calculator
-  GravityAccelerationFunctor gravity(GravityConstants::GM_MOON_MILLISECOND);
+  GravityAccelerationFunctor gravity(GM);
   TrajectoryCalculator traj_calc(gravity);
 
     // There needs to be one observation per timestamp
@@ -74,27 +74,43 @@ TrajectoryErrorEstimator::calculateError(
   if (calculate_gradient)
   {
       // Gradient for GM
-    double new_error = calculateError(GM*1.001, p0, v0, t, false);
-    _gradient.GM = (new_error - error_squared)/(.001*GM);
+    double new_error;
+    if (GM == 0)
+      _gradient.GM = 0;
+    else
+    {
+      new_error = calculateError(GM*1.001, p0, v0, t, false);
+      _gradient.GM = (new_error - error_squared)/(.001*GM);
+    }
 
       // Gradient for each element of p0
     for (int i = 0; i < 3; ++i)
     {
-      double save = p0[i];
-      p0[i] *= 1.001;
-      new_error = calculateError(GM, p0, v0, t, false);
-      p0[i] = save;
-      _gradient.p0[i] = (new_error - error_squared)/(.001*p0[i]);
+      if (p0[i] != 0)
+      {
+        double save = p0[i];
+        p0[i] *= 1.001;
+        new_error = calculateError(GM, p0, v0, t, false);
+        p0[i] = save;
+        _gradient.p0[i] = (new_error - error_squared)/(.001*p0[i]);
+      }
+      else
+        _gradient.p0[i] = 0;
     }
     
       // Gradient for each element of v0
     for (int i = 0; i < 3; ++i)
     {
-      double save = v0[i];
-      v0[i] *= 1.001;
-      new_error = calculateError(GM, p0, v0, t, false);
-      v0[i] = save;
-      _gradient.v0[i] = (new_error - error_squared)/(.001*v0[i]);
+      if (v0[i] != 0)
+      {
+        double save = v0[i];
+        v0[i] *= 1.001;
+        new_error = calculateError(GM, p0, v0, t, false);
+        v0[i] = save;
+        _gradient.v0[i] = (new_error - error_squared)/(.001*v0[i]);
+      }
+      else
+        _gradient.v0[i] = 0;
     }
   }
 
