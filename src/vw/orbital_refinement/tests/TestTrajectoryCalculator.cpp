@@ -50,7 +50,7 @@ TEST( TrajectoryCalculator, CircularOrbit ) {
 
   // Now we should move in a circle in the z=0 plane.
   // constant radius
-  GravityAccelerationFunctor gravity;
+  GravityAccelerationFunctor gravity(GM);
   TrajectoryCalculator calc(gravity);
   for (int i = 0; i < reading_count; i++) {
     calc.calculateNextPoint(p0, v0, delta_t, p_next, v_next);
@@ -90,4 +90,31 @@ TEST( TrajectoryCalculator, CircularOrbit ) {
   // print out the final positions.
 //   std::cout << "\nFinal Position: " << p0 << std::endl;
 //   std::cout << "Final Velocity: " << v0 << std::endl;
+}
+
+TEST( TrajectoryCalculator, StraightLine ) {
+  GravityAccelerationFunctor gravity(0);
+  TrajectoryCalculator traj_calc(gravity);
+  
+  Vector3 p0(1.0, 0.0, 0.0);
+  Vector3 v0(.001, .002, .003);
+  
+  Vector3 cur_p = p0;
+  Vector3 cur_v = v0;
+  for (int i = 1; i < 5; i++)
+  {
+    Vector3 next_p;
+    Vector3 next_v;
+    traj_calc.calculateNextPoint(cur_p, cur_v, 1000, next_p, next_v);
+    ASSERT_NEAR(next_p[0], (double)i + 1, 1e-5);
+    ASSERT_NEAR(next_p[1], i*2, 1e-5);
+    ASSERT_NEAR(next_p[2], i*3, 1e-5);
+    
+    ASSERT_NEAR(next_v[0], v0[0], 1e-6);
+    ASSERT_NEAR(next_v[1], v0[1], 1e-6);
+    ASSERT_NEAR(next_v[2], v0[2], 1e-6);
+    
+    cur_p = next_p;
+    cur_v = next_v;
+  }
 }

@@ -86,8 +86,7 @@ void TrajectoryCalculator::calculateNextPoint(
 
     // use milliseconds because our time values are in milliseconds.
     // this means our velocities will also be in milliseconds.
-  GravityAccelerationFunctor grav_func(GravityConstants::GM_MOON_MILLISECOND);
-  GravityAdapter grav_adapter(grav_func);
+  GravityAdapter grav_adapter(*_accelerator);
   PositionVelocity start_state;
   start_state.position = cur_location;
   start_state.velocity = cur_velocity;
