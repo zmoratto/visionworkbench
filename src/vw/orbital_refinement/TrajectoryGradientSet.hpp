@@ -47,16 +47,11 @@ double dot_prod(const TrajectoryGradientSet& lhs, const TrajectoryGradientSet& r
   double result = lhs.GM*rhs.GM;
   result += dot_prod(lhs.p0, rhs.p0);
   result += dot_prod(lhs.v0, rhs.v0);
-  std::cout << "  ...dot_prod1..." << std::endl;
-  std::cout << "    lhs.size()=" << lhs.t.size() << std::endl;
-  std::cout << "    rhs.size()=" << rhs.t.size() << std::endl;
   for (std::size_t i = 0; i < lhs.t.size(); ++i)
   {
-    std::cout << "  ...dot_prod2..." << std::endl;
     result += lhs.t[i]*rhs.t[i];
   }
   
-  std::cout << "  ...dot_prod3..." << std::endl;
   return result;
 }
 
