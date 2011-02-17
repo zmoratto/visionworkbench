@@ -12,11 +12,11 @@
 
 using namespace vw;
 
-TEST( TrajectorCalculator, SanityCheck ) {
+TEST( TrajectoryCalculator, SanityCheck ) {
   EXPECT_EQ(1, 1);
 }
 
-TEST( TrajectorCalculator, CircularOrbit ) {
+TEST( TrajectoryCalculator, CircularOrbit ) {
   // Approximate radius of our readings (meters).
   double r0 = 1860000;
   double GM = GravityConstants::GM_MOON_MILLISECOND;
