@@ -20,7 +20,7 @@ TEST( TrajectoryErrorEstimator, SanityCheck ) {
   EXPECT_EQ(1, 1);
 }
 
-TEST( TrajectoryErrorEstimator, LinearTrajectory ) {
+TEST( TrajectoryErrorEstimator, CheckErrorAndGradientCalcs ) {
     // Test a straight-line trajectory with small errors in the time values.
     // We'll test a constant velocity of (1,2,3) starting at (1,0,0).
     // Gravity is zero.
@@ -43,20 +43,93 @@ TEST( TrajectoryErrorEstimator, LinearTrajectory ) {
 
     // Our observed coordinates are exact, but the time values are off.
   std::list<OrbitalReading> observations;
-  observations.push_back(OrbitalReading("x1",  100, 1, 0, 0));
+  int t0 = 0;
+  observations.push_back(OrbitalReading("x1",   t0, 1, 0, 0));
   observations.push_back(OrbitalReading("x2",  900, 2, 2, 3));
   observations.push_back(OrbitalReading("x3", 1800, 3, 4, 6));
   observations.push_back(OrbitalReading("x4", 3200, 4, 6, 9));
   observations.push_back(OrbitalReading("x5", 4050, 5, 8, 12));
   
-    // We also have our starting position and velocity wrong.
-  Vector3 p0(.8, .2, .1);
+    // We also have our starting velocity wrong.
+  Vector3 p0(1,0,0);
+  Vector3 v0(.00098, .0022, .0029);
+
+    // The locations at the observed times using p0 and v0.
+    // Note that t0 is 100 according to observations, not 0.
+  std::vector<Vector3> locations_at_observed_times;
+  locations_at_observed_times.push_back(p0);
+  locations_at_observed_times.push_back(p0 +  (900-t0)*v0);
+  locations_at_observed_times.push_back(p0 + (1800-t0)*v0);
+  locations_at_observed_times.push_back(p0 + (3200-t0)*v0);
+  locations_at_observed_times.push_back(p0 + (4050-t0)*v0);
+
+  
+    // Create the function object we're going to optimize against.
+  TrajectoryErrorEstimator error_func(observations);
+  TrajectoryDecisionVariableSet initial_guess(0, p0, v0, observations);
+
+    // See if the error and gradients are calculated as expected.
+  double calculated_error = error_func(initial_guess);
+  TrajectoryGradientSet gradient = error_func.gradient(initial_guess);
+  
+  double expected_error = 0;
+  std::list<OrbitalReading>::iterator observation_iter = observations.begin();
+  for (int i = 0; i < 5; ++i)
+  {
+    Vector3 observation = observation_iter->mCoord;
+    Vector3 error = locations_at_observed_times[i] - observation;
+    expected_error += dot_prod(error, error);
+    
+    double this_gradient = 2*dot_prod(error,v0);
+    EXPECT_NEAR(gradient.t[i], this_gradient, 1e-5);
+    
+    ++observation_iter;
+  }
+  EXPECT_NEAR(calculated_error, expected_error, 1e-3);
+}
+
+
+TEST( TrajectoryErrorEstimator, LinearTrajectory ) {
+    // Note that a lot of code here is identical to the test above.
+    // Consider refactoring.
+    //
+    // Test a straight-line trajectory with small errors in the time values.
+    // We'll test a constant velocity of (1,2,3) starting at (1,0,0).
+    // Gravity is zero.
+    //
+    // Correct points [t: x y z], with t in milliseconds, are:
+    //   [0 1 0 0]
+    //   [1000 2 2 3]
+    //   [2000 3 4 6]
+    //   [3000 4 6 9]
+    //   [4000 5 8 12]
+  std::vector<OrbitalReading> correct_points;
+    // "ID", t, x, y, z
+  correct_points.push_back(OrbitalReading("p1",    0, 1, 0,  0));
+  correct_points.push_back(OrbitalReading("p2", 1000, 2, 2,  3));
+  correct_points.push_back(OrbitalReading("p3", 2000, 3, 4,  6));
+  correct_points.push_back(OrbitalReading("p4", 3000, 4, 6,  9));
+  correct_points.push_back(OrbitalReading("p5", 4000, 5, 8, 12));
+  Vector3 correct_p0 = correct_points[0].mCoord;
+  Vector3 correct_v0(.001, .002, .003);
+
+    // Our observed coordinates are exact, but the time values are off.
+  std::list<OrbitalReading> observations;
+  int t0 = 0;
+  observations.push_back(OrbitalReading("x1",   t0, 1, 0, 0));
+  observations.push_back(OrbitalReading("x2",  900, 2, 2, 3));
+  observations.push_back(OrbitalReading("x3", 1800, 3, 4, 6));
+  observations.push_back(OrbitalReading("x4", 3200, 4, 6, 9));
+  observations.push_back(OrbitalReading("x5", 4050, 5, 8, 12));
+  
+    // We also have our starting velocity wrong.
+  Vector3 p0(1,0,0);
   Vector3 v0(.00098, .0022, .0029);
 
     // Create the function object we're going to optimize against.
   TrajectoryErrorEstimator error_func(observations);
   TrajectoryDecisionVariableSet initial_guess(0, p0, v0, observations);
-  
+
     // Optimize
   TrajectoryDecisionVariableSet results =
       conjugate_gradient(error_func, initial_guess, ArmijoStepSize(), 500);
