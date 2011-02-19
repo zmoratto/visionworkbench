@@ -1,6 +1,9 @@
 #include "DataRefiner.hpp"
 #include "OrbitalReading.hpp"
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
+#include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
+#include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
+#include <vw/orbital_refinement/TrajectoryErrorEstimator.hpp>
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 
 #include <list>
@@ -259,67 +262,6 @@ namespace
       }
   }
 
-  void estimateTrajectory(vw::Vector3 p0, vw::Vector3 v0, std::vector<double> times,
-          std::list<vw::Vector3>& est_pos) {
-      
-      // Initialize the calculator
-      GravityAccelerationFunctor gravity;
-      TrajectoryCalculator calc(gravity);
-
-      // Set our initial set of data
-      vw::Vector3 this_pos = p0;
-      vw::Vector3 this_vel = v0;
-
-      // Go through the list of timestamps, and estimate the position and
-      // velocity at each data point
-      for (std::vector<double>::iterator t_it = (times.begin())++;
-              t_it != times.end(); t_it++) {
-          // New pointers for the next position and velocity
-          vw::Vector3 next_pos;
-          vw::Vector3 next_vel;
-
-          // Calculate the delta time
-          std::vector<double>::iterator p_it = t_it--;
-          double delta = *t_it - *p_it;
-
-          // Calculate the next point with Runge Kutta
-          calc.calculateNextPoint(this_pos, this_vel, delta, next_pos, next_vel);
-
-          // Set this_pos and this_vel for the next iteration
-          this_pos = next_pos;
-          this_vel = next_vel;
-
-          // Record the estimated position
-          est_pos.push_back(next_pos);
-      }
-  }
-
-  void calculatePositionError(std::list<OrbitalReading> orig, std::list<vw::Vector3> est,
-          std::list<vw::Vector3>& errors) {
-      
-      // The number of original and estimated readings should match each other, 
-      // otherwise there is a problem
-      if( orig.size() != est.size() ) {
-          std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
-          exit(1);
-      }
-
-      std::list<vw::Vector3>::iterator est_it = est.begin();
-
-      for (std::list<OrbitalReading>::iterator orig_it = orig.begin();
-         orig_it != orig.end(); orig_it++, est_it++) {
-
-          // Calculate the error at this point
-          vw::Vector3 error((*est_it)[0]-(*orig_it).mCoord[0],
-                            (*est_it)[1]-(*orig_it).mCoord[1],
-                            (*est_it)[2]-(*orig_it).mCoord[2]);
-
-          // Save the error
-          errors.push_back(error);
-      }
-
-  }
-
   void calculateRadialComponents(std::list<OrbitalReading>& readings, std::vector<double>& r)
   {
     std::vector<double>::iterator r_it = r.begin();
@@ -468,29 +410,16 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       velocity[k] = *it;
   }
 
-  std::list<vw::Vector3> est_pos;
 
-  /*
-   * We have the initial acceleration, so now we want to create a for loop
-   * that does this:
-   * 1. Take the first timestamp, and using Runge-Kutta, estimate the next
-   *    position and velocity with the acceleration we just calculated
-   * 2. Store the new position and velocity, because we will use this to
-   *    calculate the error between the estimated and the original values
-   * 3. Calculate the next acceleration value using the position and velocity
-   *    that was just calculated.
-   *
-   * We will want to do this for every timestamp
-   */
+  // Calculate the preliminary orbit
 
-  estimateTrajectory(position, velocity, times, est_pos);
+  TrajectoryDecisionVariableSet decVars(GM, position, velocity, readings);
 
-  // Now we need to calculate the error between the estimated and original
-  // position values
-  std::list<vw::Vector3> errors;
+  TrajectoryErrorEstimator errorEst(readings);
 
-  calculatePositionError(readings, est_pos, errors);
+  double error = errorEst(decVars);
 
+  TrajectoryGradientSet gradient = errorEst.gradient(decVars);
   
 
 /*
