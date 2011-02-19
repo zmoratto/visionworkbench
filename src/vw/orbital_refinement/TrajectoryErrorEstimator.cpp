@@ -21,6 +21,22 @@ TrajectoryErrorEstimator::operator()(const domain_type& x) const
       calculateError(x.GM, x.p0, x.v0, x.timestamps, true);
 }
 
+inline double TrajectoryErrorEstimator::forwardDifferenceGradient(
+    double& to_tweak, double epsilon,
+    double& GM, Vector3& p0, Vector3& v0,
+    const std::vector<OrbitalReading::timestamp_t>& t, double old_error)
+{
+  double save = to_tweak;
+  if (fabs(to_tweak) < 1.0)
+    to_tweak += epsilon;
+  else
+    to_tweak *= 1.001;
+  double new_error = calculateError(GM, p0, v0, t, false);
+  double gradient = (new_error - old_error)/(to_tweak - save);
+  to_tweak = save;
+  return gradient;
+}
+
 TrajectoryErrorEstimator::result_type
 TrajectoryErrorEstimator::calculateError(
     double GM, Vector3 p0, Vector3 v0,
@@ -39,9 +55,12 @@ TrajectoryErrorEstimator::calculateError(
   std::list<OrbitalReading>::const_iterator observation_iter =
       _observations.begin();
 
-    // Calculate error and gradient for the first point
+    // Calculate error and gradient for the first point.
+    // Note that gradient is zero for the first t because we're
+    // holding t0 constant and adjusting all other t values relative to t0.
   double error_squared =
-      calculatePositionError(0, p0, v0, *observation_iter, calculate_gradient);
+      calculatePositionError(0, p0, v0, *observation_iter, false);
+  _gradient.t[0] = 0;
   
     // Prepare to calculate the rest of the errors and gradients.
   Vector3 prev_position = p0;
@@ -70,47 +89,19 @@ TrajectoryErrorEstimator::calculateError(
     prev_velocity = next_velocity;
   }
 
-    // Save the gradients for the non-time values, if requested
+  // Calculate the gradients for the non-time values, if requested
   if (calculate_gradient)
   {
-      // Gradient for GM
-    double new_error;
-    if (GM == 0)
-      _gradient.GM = 0;
-    else
-    {
-      new_error = calculateError(GM*1.001, p0, v0, t, false);
-      _gradient.GM = (new_error - error_squared)/(.001*GM);
-    }
-
-      // Gradient for each element of p0
-    for (int i = 0; i < 3; ++i)
-    {
-      if (p0[i] != 0)
-      {
-        double save = p0[i];
-        p0[i] *= 1.001;
-        new_error = calculateError(GM, p0, v0, t, false);
-        p0[i] = save;
-        _gradient.p0[i] = (new_error - error_squared)/(.001*p0[i]);
-      }
-      else
-        _gradient.p0[i] = 0;
-    }
+    // Gradient for GM
+    _gradient.GM=forwardDifferenceGradient(GM, 1, GM, p0, v0, t, error_squared);
     
-      // Gradient for each element of v0
+      // Gradient for each element of p0 and v0
     for (int i = 0; i < 3; ++i)
     {
-      if (v0[i] != 0)
-      {
-        double save = v0[i];
-        v0[i] *= 1.001;
-        new_error = calculateError(GM, p0, v0, t, false);
-        v0[i] = save;
-        _gradient.v0[i] = (new_error - error_squared)/(.001*v0[i]);
-      }
-      else
-        _gradient.v0[i] = 0;
+      _gradient.p0[i] =
+          forwardDifferenceGradient(p0[i], .001, GM, p0, v0, t, error_squared);
+      _gradient.v0[i] =
+          forwardDifferenceGradient(v0[i], .001, GM, p0, v0, t, error_squared);
     }
   }
 

@@ -42,6 +42,11 @@ private:
                                 const OrbitalReading& observation,
                                 bool calculate_gradient);
   
+  double forwardDifferenceGradient(
+      double& to_tweak, double epsilon,
+      double& GM, vw::Vector3& p0, vw::Vector3& v0,
+      const std::vector<OrbitalReading::timestamp_t>& t, double old_error);
+  
   const std::list<OrbitalReading>& _observations;
   TrajectoryGradientSet _gradient;
 };
