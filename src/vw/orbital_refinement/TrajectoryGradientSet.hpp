@@ -42,7 +42,7 @@ struct TrajectoryGradientSet
   }
 };
 
-double dot_prod(const TrajectoryGradientSet& lhs, const TrajectoryGradientSet& rhs)
+inline double dot_prod(const TrajectoryGradientSet& lhs, const TrajectoryGradientSet& rhs)
 {
   double result = lhs.GM*rhs.GM;
   result += dot_prod(lhs.p0, rhs.p0);
@@ -55,7 +55,7 @@ double dot_prod(const TrajectoryGradientSet& lhs, const TrajectoryGradientSet& r
   return result;
 }
 
-TrajectoryGradientSet operator*(double lhs, const TrajectoryGradientSet& rhs)
+inline TrajectoryGradientSet operator*(double lhs, const TrajectoryGradientSet& rhs)
 {
   TrajectoryGradientSet result;
   result.GM = lhs*rhs.GM;
@@ -67,7 +67,7 @@ TrajectoryGradientSet operator*(double lhs, const TrajectoryGradientSet& rhs)
   return result;
 }
 
-TrajectoryGradientSet operator+(const TrajectoryGradientSet& lhs,
+inline TrajectoryGradientSet operator+(const TrajectoryGradientSet& lhs,
                                 const TrajectoryGradientSet& rhs)
 {
   TrajectoryGradientSet result;
@@ -80,7 +80,7 @@ TrajectoryGradientSet operator+(const TrajectoryGradientSet& lhs,
   return result;
 }
 
-TrajectoryDecisionVariableSet operator+(const TrajectoryDecisionVariableSet& lhs,
+inline TrajectoryDecisionVariableSet operator+(const TrajectoryDecisionVariableSet& lhs,
                                         const TrajectoryGradientSet& rhs)
 {
   TrajectoryDecisionVariableSet result;
@@ -93,7 +93,7 @@ TrajectoryDecisionVariableSet operator+(const TrajectoryDecisionVariableSet& lhs
   return result;
 }
 
-TrajectoryGradientSet& operator+=(TrajectoryGradientSet& lhs,
+inline TrajectoryGradientSet& operator+=(TrajectoryGradientSet& lhs,
                                   const TrajectoryGradientSet& rhs)
 {
   lhs.GM += rhs.GM;

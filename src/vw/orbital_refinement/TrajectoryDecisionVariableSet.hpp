@@ -21,7 +21,7 @@ struct TrajectoryDecisionVariableSet
 };
 
 
-TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet(
+inline TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet(
     double GM_in,
     const vw::Vector3& p0_in,
     const vw::Vector3& v0_in,
@@ -35,7 +35,7 @@ TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet(
     timestamps.push_back(it->mTime);
 }
 
-TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet() 
+inline TrajectoryDecisionVariableSet::TrajectoryDecisionVariableSet() 
 {}
   
 
