@@ -2,7 +2,8 @@
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 
-using vw::Vector3;
+
+using namespace vw;
 
 TrajectoryErrorEstimator::TrajectoryErrorEstimator(
     const std::list<OrbitalReading>& observations) 
@@ -21,20 +22,33 @@ TrajectoryErrorEstimator::operator()(const domain_type& x) const
       calculateError(x.GM, x.p0, x.v0, x.timestamps, true);
 }
 
-inline double TrajectoryErrorEstimator::forwardDifferenceGradient(
+inline double TrajectoryErrorEstimator::centralDifferenceGradient(
     double& to_tweak, double epsilon,
     double& GM, Vector3& p0, Vector3& v0,
     const std::vector<OrbitalReading::timestamp_t>& t, double old_error)
 {
   double save = to_tweak;
-  if (fabs(to_tweak) < 1.0)
-    to_tweak += epsilon;
+  double forward_x, reverse_x;
+  
+    // First do the forward difference
+  if (fabs(save) < 1.0)
+    forward_x = save + epsilon;
   else
-    to_tweak *= 1.001;
-  double new_error = calculateError(GM, p0, v0, t, false);
-  double gradient = (new_error - old_error)/(to_tweak - save);
+    forward_x = save * 1.001;
+  to_tweak = forward_x;
+  double error = calculateError(GM, p0, v0, t, false);
+
+    // Now do reverse difference
+  if (fabs(save) < 1.0)
+    reverse_x = save - epsilon;
+  else
+    reverse_x = save * 0.999;
+  to_tweak = reverse_x;
+  error -= calculateError(GM, p0, v0, t, false);
+  
   to_tweak = save;
-  return gradient;
+  
+  return error/(forward_x - reverse_x);
 }
 
 TrajectoryErrorEstimator::result_type
@@ -93,15 +107,15 @@ TrajectoryErrorEstimator::calculateError(
   if (calculate_gradient)
   {
     // Gradient for GM
-    _gradient.GM=forwardDifferenceGradient(GM, 1, GM, p0, v0, t, error_squared);
+    _gradient.GM=centralDifferenceGradient(GM, .00001, GM, p0, v0, t, error_squared);
     
       // Gradient for each element of p0 and v0
     for (int i = 0; i < 3; ++i)
     {
       _gradient.p0[i] =
-          forwardDifferenceGradient(p0[i], .001, GM, p0, v0, t, error_squared);
+          centralDifferenceGradient(p0[i], .001, GM, p0, v0, t, error_squared);
       _gradient.v0[i] =
-          forwardDifferenceGradient(v0[i], .001, GM, p0, v0, t, error_squared);
+          centralDifferenceGradient(v0[i], .001, GM, p0, v0, t, error_squared);
     }
   }
 
