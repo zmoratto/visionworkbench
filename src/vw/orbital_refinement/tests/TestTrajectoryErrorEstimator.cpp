@@ -22,36 +22,20 @@ TEST( TrajectoryErrorEstimator, SanityCheck ) {
 
 TEST( TrajectoryErrorEstimator, CheckErrorAndGradientCalcs ) {
     // Test a straight-line trajectory with small errors in the time values.
-    // We'll test a constant velocity of (1,2,3) starting at (1,0,0).
+    // We'll test a constant velocity of around (1,2,3) starting at (1001,0,0).
     // Gravity is zero.
-    //
-    // Correct points [t: x y z], with t in milliseconds, are:
-    //   [0 1 0 0]
-    //   [1000 2 2 3]
-    //   [2000 3 4 6]
-    //   [3000 4 6 9]
-    //   [4000 5 8 12]
-  std::vector<OrbitalReading> correct_points;
-    // "ID", t, x, y, z
-  correct_points.push_back(OrbitalReading("p1",    0, 1, 0,  0));
-  correct_points.push_back(OrbitalReading("p2", 1000, 2, 2,  3));
-  correct_points.push_back(OrbitalReading("p3", 2000, 3, 4,  6));
-  correct_points.push_back(OrbitalReading("p4", 3000, 4, 6,  9));
-  correct_points.push_back(OrbitalReading("p5", 4000, 5, 8, 12));
-  Vector3 correct_p0 = correct_points[0].mCoord;
-  Vector3 correct_v0(.001, .002, .003);
 
     // Our observed coordinates are exact, but the time values are off.
   std::list<OrbitalReading> observations;
   int t0 = 0;
-  observations.push_back(OrbitalReading("x1",   t0, 1, 0, 0));
-  observations.push_back(OrbitalReading("x2",  900, 2, 2, 3));
-  observations.push_back(OrbitalReading("x3", 1800, 3, 4, 6));
-  observations.push_back(OrbitalReading("x4", 3200, 4, 6, 9));
-  observations.push_back(OrbitalReading("x5", 4050, 5, 8, 12));
+  observations.push_back(OrbitalReading("x1",   t0, 1001, 0, 0));
+  observations.push_back(OrbitalReading("x2",  900, 1002, 2, 3));
+  observations.push_back(OrbitalReading("x3", 1800, 1003, 4, 6));
+  observations.push_back(OrbitalReading("x4", 3200, 1004, 6, 9));
+  observations.push_back(OrbitalReading("x5", 4050, 1005, 8, 12));
   
     // We also have our starting velocity wrong.
-  Vector3 p0(1,0,0);
+  Vector3 p0(1001,0,0);
   Vector3 v0(.00098, .0022, .0029);
 
     // The locations at the observed times using p0 and v0.
@@ -94,36 +78,20 @@ TEST( TrajectoryErrorEstimator, LinearTrajectory ) {
     // Consider refactoring.
     //
     // Test a straight-line trajectory with small errors in the time values.
-    // We'll test a constant velocity of (1,2,3) starting at (1,0,0).
+    // We'll test a constant velocity of around (1,2,3) starting at (1,0,0).
     // Gravity is zero.
-    //
-    // Correct points [t: x y z], with t in milliseconds, are:
-    //   [0 1 0 0]
-    //   [1000 2 2 3]
-    //   [2000 3 4 6]
-    //   [3000 4 6 9]
-    //   [4000 5 8 12]
-  std::vector<OrbitalReading> correct_points;
-    // "ID", t, x, y, z
-  correct_points.push_back(OrbitalReading("p1",    0, 1, 0,  0));
-  correct_points.push_back(OrbitalReading("p2", 1000, 2, 2,  3));
-  correct_points.push_back(OrbitalReading("p3", 2000, 3, 4,  6));
-  correct_points.push_back(OrbitalReading("p4", 3000, 4, 6,  9));
-  correct_points.push_back(OrbitalReading("p5", 4000, 5, 8, 12));
-  Vector3 correct_p0 = correct_points[0].mCoord;
-  Vector3 correct_v0(.001, .002, .003);
 
     // Our observed coordinates are exact, but the time values are off.
   std::list<OrbitalReading> observations;
   int t0 = 0;
-  observations.push_back(OrbitalReading("x1",   t0, 1, 0, 0));
-  observations.push_back(OrbitalReading("x2",  900, 2, 2, 3));
-  observations.push_back(OrbitalReading("x3", 1800, 3, 4, 6));
-  observations.push_back(OrbitalReading("x4", 3200, 4, 6, 9));
-  observations.push_back(OrbitalReading("x5", 4050, 5, 8, 12));
+  observations.push_back(OrbitalReading("x1",   t0, 1001, 0, 0));
+  observations.push_back(OrbitalReading("x2",  900, 1002, 2, 3));
+  observations.push_back(OrbitalReading("x3", 1800, 1003, 4, 6));
+  observations.push_back(OrbitalReading("x4", 3200, 1004, 6, 9));
+  observations.push_back(OrbitalReading("x5", 4050, 1005, 8, 12));
   
     // We also have our starting velocity wrong.
-  Vector3 p0(1,0,0);
+  Vector3 p0(1001,0,0);
   Vector3 v0(.00098, .0022, .0029);
 
     // Create the function object we're going to optimize against.
@@ -136,17 +104,19 @@ TEST( TrajectoryErrorEstimator, LinearTrajectory ) {
 
     // See how close we got.
   EXPECT_NEAR(results.GM, 0, 1e-3);
-  EXPECT_NEAR(results.p0[0], correct_p0[0], 1e-3);
-  EXPECT_NEAR(results.p0[1], correct_p0[1], 1e-3);
-  EXPECT_NEAR(results.p0[2], correct_p0[2], 1e-3);
-  EXPECT_NEAR(results.v0[0], correct_v0[0], 1e-3);
-  EXPECT_NEAR(results.v0[1], correct_v0[1], 1e-3);
-  EXPECT_NEAR(results.v0[2], correct_v0[2], 1e-3);
-  
-  for (std::size_t i = 0; i < correct_points.size(); ++i)
+
+  std::list<OrbitalReading>::iterator observation_it = observations.begin();
+  for (std::size_t i = 0; i < observations.size(); ++i)
   {
-      // Expect times within 2 milliseconds.
-    EXPECT_NEAR(results.timestamps[i], correct_points[i].mTime, 2);
+    OrbitalReading& observation = *observation_it;
+    Vector3 calculated_position = results.p0 + results.v0 * (double)results.timestamps[i];
+      // Expect positions within .001
+    EXPECT_NEAR(calculated_position[0], observation.mCoord[0], .01);
+    EXPECT_NEAR(calculated_position[1], observation.mCoord[1], .01);
+    EXPECT_NEAR(calculated_position[2], observation.mCoord[2], .01);
+    ++observation_it;
   }
+
+  
 }
 
