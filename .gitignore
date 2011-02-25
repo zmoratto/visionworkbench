@@ -180,6 +180,7 @@ docs/workbook/workbook.toc
 /src/vw/orbital_refinement/or_utility
 /src/vw/orbital_refinement/tests/TestTrajectoryCalculator
 /src/vw/orbital_refinement/tests/TestGravityAccelerationFunctor
+/src/vw/orbital_refinement/tests/TestTrajectoryErrorEstimator
 /src/vw/Plate/hirise2tif
 /src/vw/Plate/image2plate
 /src/vw/Plate/index_client
