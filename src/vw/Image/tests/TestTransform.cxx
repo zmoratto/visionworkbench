@@ -5,8 +5,8 @@
 // __END_LICENSE__
 
 
-// TestTransform.h
 #include <gtest/gtest.h>
+#include <test/Helpers.h>
 
 #include <vw/Image/ImageView.h>
 #include <vw/Image/Transform.h>
@@ -86,4 +86,65 @@ TEST( Transform, Resample ) {
   ASSERT_TRUE( bool_trait<IsFloatingPointIndexable>( im2 ) );
   ASSERT_TRUE( bool_trait<IsFloatingPointIndexable>( transform(im, ResampleTransform(1,1)) ) );
   ASSERT_FALSE( bool_trait<IsMultiplyAccessible>( transform(im, ResampleTransform(1,1)) ) );
+}
+
+TEST( Transform, Rotate ) {
+  typedef PixelRGB<uint8> Px;
+  Px gray(0x7f,0x7f,0x7f), r(0xff,0,0), g(0,0xff,0), b(0,0,0xff);
+
+  ImageView<Px> src(2,2);
+  src(0,0) = gray;
+  src(1,0) = r;
+  src(0,1) = g;
+  src(1,1) = b;
+
+  ImageView<Px> dst =
+    rotate( src, 2*M_PI, Vector2(src.cols()-1,src.rows()-1)/2 );
+
+  EXPECT_MATRIX_EQ(src, dst);
+
+  {
+    RotateTransform rotatetx(M_PI/2,Vector2(1,1));
+    EXPECT_VECTOR_NEAR( Vector2(1,3), rotatetx.forward( Vector2(3,1) ), 1e-3 );
+    EXPECT_VECTOR_NEAR( Vector2(1,-1),rotatetx.reverse( Vector2(3,1) ), 1e-3 );
+  }
+}
+
+TEST( Transform, Compose ) {
+
+  { // Test looped transform (translation only)
+    TransformRef tx( compose(TranslateTransform( 2, 2 ),
+                             TranslateTransform(-2,-2)) );
+    for ( size_t i = 0; i < 4; i++ ) {
+      for ( size_t j = 0; j < 4; j++ ) {
+        EXPECT_VECTOR_NEAR( Vector2(i,j),
+                            tx.forward(Vector2(i,j)), 1e-3 );
+        EXPECT_VECTOR_NEAR( Vector2(i,j),
+                            tx.reverse(Vector2(i,j)), 1e-3 );
+      }
+    }
+  }
+
+  { // Test looped transform (rotation only)
+    TransformRef tx( compose(RotateTransform( M_PI/3, Vector2(2,2) ),
+                             RotateTransform( -M_PI/3, Vector2(2,2) ) ) );
+    for ( size_t i = 0; i < 4; i++ ) {
+      for ( size_t j = 0; j < 4; j++ ) {
+        EXPECT_VECTOR_NEAR( Vector2(i,j),
+                            tx.forward(Vector2(i,j)), 1e-3 );
+        EXPECT_VECTOR_NEAR( Vector2(i,j),
+                            tx.reverse(Vector2(i,j)), 1e-3 );
+      }
+    }
+  }
+
+  { // Test rotate transform and translation combined.
+    TransformRef tx( compose( RotateTransform( M_PI/2, Vector2() ),
+                              TranslateTransform( 1, 1 ) ) );
+    EXPECT_VECTOR_NEAR( Vector2(-1,1),
+                        tx.forward(Vector2()), 1e-3 );
+    EXPECT_VECTOR_NEAR( Vector2(),
+                        tx.reverse(Vector2(-1,1)), 1e-3 );
+  }
+
 }

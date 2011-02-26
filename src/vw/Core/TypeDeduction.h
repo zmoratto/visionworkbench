@@ -58,6 +58,10 @@ namespace vw {
     template<> struct Helper<double,long double> { typedef long double type; }; \
     template<> struct Helper<long double,float> { typedef long double type; }; \
     template<> struct Helper<float,long double> { typedef long double type; }; \
+    template<> struct Helper<long double,unsigned long long> { typedef long double type; }; \
+    template<> struct Helper<unsigned long long,long double> { typedef long double type; }; \
+    template<> struct Helper<long double,signed long long> { typedef long double type; }; \
+    template<> struct Helper<signed long long,long double> { typedef long double type; }; \
     template<> struct Helper<long double,unsigned long> { typedef long double type; }; \
     template<> struct Helper<unsigned long,long double> { typedef long double type; }; \
     template<> struct Helper<long double,signed long> { typedef long double type; }; \
@@ -78,6 +82,10 @@ namespace vw {
     template<> struct Helper<double,double> { typedef double type; };   \
     template<> struct Helper<double,float> { typedef double type; };    \
     template<> struct Helper<float,double> { typedef double type; };    \
+    template<> struct Helper<double,unsigned long long> { typedef double type; }; \
+    template<> struct Helper<unsigned long long,double> { typedef double type; }; \
+    template<> struct Helper<double,signed long long> { typedef double type; }; \
+    template<> struct Helper<signed long long,double> { typedef double type; }; \
     template<> struct Helper<double,unsigned long> { typedef double type; }; \
     template<> struct Helper<unsigned long,double> { typedef double type; }; \
     template<> struct Helper<double,signed long> { typedef double type; }; \
@@ -96,6 +104,11 @@ namespace vw {
     template<> struct Helper<signed char,double> { typedef double type; }; \
     /* Combinations that return float */                                \
     template<> struct Helper<float,float> { typedef float type; };      \
+    template<> struct Helper<float,unsigned long long> { typedef float type; }; \
+    template<> struct Helper<unsigned long long,float> { typedef float type; }; \
+    template<> struct Helper<float,signed long long> { typedef float type; }; \
+    template<> struct Helper<signed long long,float> { typedef float type; }; \
+    template<> struct Helper<float,unsigned long> { typedef float type; }; \
     template<> struct Helper<unsigned long,float> { typedef float type; }; \
     template<> struct Helper<float,signed long> { typedef float type; }; \
     template<> struct Helper<signed long,float> { typedef float type; }; \
@@ -111,6 +124,44 @@ namespace vw {
     template<> struct Helper<unsigned char,float> { typedef float type; }; \
     template<> struct Helper<float,signed char> { typedef float type; }; \
     template<> struct Helper<signed char,float> { typedef float type; }; \
+    /* Combinations that return unsigned long long */                   \
+    template<> struct Helper<unsigned long long,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,signed long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<signed long long,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,unsigned long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,signed long> { typedef unsigned long long type; }; \
+    template<> struct Helper<signed long,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,unsigned int> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned int,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,signed int> { typedef unsigned long long type; }; \
+    template<> struct Helper<signed int,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,unsigned short> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned short,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,signed short> { typedef unsigned long long type; }; \
+    template<> struct Helper<signed short,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,unsigned char> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned char,unsigned long long> { typedef unsigned long long type; }; \
+    template<> struct Helper<unsigned long long,signed char> { typedef unsigned long long type; }; \
+    template<> struct Helper<signed char,unsigned long long> { typedef unsigned long long type; }; \
+    /* Combinations that return signed long long */                     \
+    template<> struct Helper<signed long long,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,unsigned long> { typedef signed long long type; }; \
+    template<> struct Helper<unsigned long,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,signed long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,unsigned int> { typedef signed long long type; }; \
+    template<> struct Helper<unsigned int,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,signed int> { typedef signed long long type; }; \
+    template<> struct Helper<signed int,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,unsigned short> { typedef signed long long type; }; \
+    template<> struct Helper<unsigned short,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,signed short> { typedef signed long long type; }; \
+    template<> struct Helper<signed short,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,unsigned char> { typedef signed long long type; }; \
+    template<> struct Helper<unsigned char,signed long long> { typedef signed long long type; }; \
+    template<> struct Helper<signed long long,signed char> { typedef signed long long type; }; \
+    template<> struct Helper<signed char,signed long long> { typedef signed long long type; }; \
     /* Combinations that return unsigned long */                        \
     template<> struct Helper<unsigned long,unsigned long> { typedef unsigned long type; }; \
     template<> struct Helper<unsigned long,signed long> { typedef unsigned long type; }; \

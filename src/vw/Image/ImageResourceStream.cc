@@ -11,9 +11,6 @@
 using namespace vw;
 
 namespace {
-  void noop_istream(SrcImageResourceStream::stream_type*)   {}
-  void noop_ostream(DstImageResourceStream::stream_type*)   {}
-
   void perform_read(std::istream* stream, char* buf, size_t size) {
     stream->read(buf, size);
     if (stream->fail()) {
@@ -32,10 +29,10 @@ namespace {
 }
 
 SrcImageResourceStream::SrcImageResourceStream(stream_type* stream)
-  : m_stream(stream, noop_istream) {}
+  : m_stream(stream, NOP()) {}
 
 SrcImageResourceStream::SrcImageResourceStream(stream_type* stream, ImageFormat fmt)
-  : m_stream(stream, noop_istream), m_fmt(fmt) {
+  : m_stream(stream, NOP()), m_fmt(fmt) {
   VW_ASSERT(m_fmt.complete(), ArgumentErr() << "ImageFormat must fully describe the image data");
 }
 SrcImageResourceStream::SrcImageResourceStream(boost::shared_ptr<stream_type> stream)
@@ -45,29 +42,9 @@ SrcImageResourceStream::SrcImageResourceStream(boost::shared_ptr<stream_type> st
   VW_ASSERT(m_fmt.complete(), ArgumentErr() << "ImageFormat must fully describe the image data");
 }
 
-int32 SrcImageResourceStream::cols() const {
+ImageFormat SrcImageResourceStream::format() const {
   VW_ASSERT(m_fmt.complete(), LogicErr() << "Function only callable on complete image format " << VW_CURRENT_FUNCTION);
-  return m_fmt.cols;
-}
-
-int32 SrcImageResourceStream::rows() const {
-  VW_ASSERT(m_fmt.complete(), LogicErr() << "Function only callable on complete image format " << VW_CURRENT_FUNCTION);
-  return m_fmt.rows;
-}
-
-int32 SrcImageResourceStream::planes() const {
-  VW_ASSERT(m_fmt.complete(), LogicErr() << "Function only callable on complete image format " << VW_CURRENT_FUNCTION);
-  return m_fmt.planes;
-}
-
-PixelFormatEnum SrcImageResourceStream::pixel_format() const {
-  VW_ASSERT(m_fmt.complete(), LogicErr() << "Function only callable on complete image format " << VW_CURRENT_FUNCTION);
-  return m_fmt.pixel_format;
-}
-
-ChannelTypeEnum SrcImageResourceStream::channel_type() const {
-  VW_ASSERT(m_fmt.complete(), LogicErr() << "Function only callable on complete image format " << VW_CURRENT_FUNCTION);
-  return m_fmt.channel_type;
+  return m_fmt;
 }
 
 const ImageFormat& SrcImageResourceStream::read_format() const {
@@ -93,9 +70,8 @@ void SrcImageResourceStream::read( ImageBuffer const& dst_buf, BBox2i const& bbo
   }
 
   // Do the complex conversion
-  ImageBuffer tmp_src(m_fmt, NULL);
-  boost::scoped_array<char> data(new char[tmp_src.byte_size()]);
-  tmp_src.data = data.get();
+  boost::scoped_array<char> data(new char[m_fmt.byte_size()]);
+  ImageBuffer tmp_src(m_fmt, data.get());
 
   perform_read(m_stream.get(), reinterpret_cast<char*>(tmp_src.data), tmp_src.byte_size());
 
@@ -109,11 +85,11 @@ void SrcImageResourceStream::reset() {
 }
 
 DstImageResourceStream::DstImageResourceStream(stream_type* stream)
-  : m_stream(stream, noop_ostream) {}
+  : m_stream(stream, NOP()) {}
 DstImageResourceStream::DstImageResourceStream(boost::shared_ptr<stream_type> stream)
   : m_stream(stream) {}
 DstImageResourceStream::DstImageResourceStream(stream_type* stream, ImageFormat fmt)
-  : m_stream(stream, noop_ostream), m_fmt(fmt) {
+  : m_stream(stream, NOP()), m_fmt(fmt) {
   VW_ASSERT(m_fmt.complete(), ArgumentErr() << "ImageFormat must fully describe the image data");
 }
 DstImageResourceStream::DstImageResourceStream(boost::shared_ptr<stream_type> stream, ImageFormat fmt)
@@ -145,9 +121,8 @@ void DstImageResourceStream::write( ImageBuffer const& src_buf, BBox2i const& bb
   }
 
   // Do the complex conversion
-  ImageBuffer tmp_dst(m_fmt, NULL);
-  boost::scoped_array<char> data(new char[tmp_dst.byte_size()]);
-  tmp_dst.data = data.get();
+  boost::scoped_array<char> data(new char[m_fmt.byte_size()]);
+  ImageBuffer tmp_dst(m_fmt, data.get());
 
   convert(tmp_dst, src_buf, false);
   perform_write(m_stream.get(), reinterpret_cast<const char*>(tmp_dst.data), tmp_dst.byte_size());

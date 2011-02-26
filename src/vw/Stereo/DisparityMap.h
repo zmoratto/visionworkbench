@@ -33,10 +33,16 @@ namespace stereo {
   //
   // Determine the range of disparity values present in the disparity map.
   template <class ViewT>
-  BBox2 get_disparity_range(ImageViewBase<ViewT> const& disparity_map ) {
-    typename UnmaskedPixelType<typename ViewT::pixel_type>::type min, max;
-    min_max_pixel_values(disparity_map, min, max);
-    return BBox2(min,max);
+  BBox2f get_disparity_range(ImageViewBase<ViewT> const& disparity_map ) {
+    typedef typename UnmaskedPixelType<typename ViewT::pixel_type>::type accum_type;
+    PixelAccumulator<EWMinMaxAccumulator<accum_type> > accumulator;
+    for_each_pixel( disparity_map, accumulator );
+
+    if ( !accumulator.is_valid() ) {
+      return BBox2f(0,0,0,0);
+    }
+    return BBox2f(accumulator.minimum(),
+		  accumulator.maximum());
   }
 
   //  missing_pixel_image()
@@ -171,16 +177,16 @@ namespace stereo {
     // can change state that is shared between any copies of the
     // RemoveOutliersFunc object and the original.
     struct RemoveOutliersState {
-      int rejected_points, total_points;
+      int32 rejected_points, total_points;
     };
 
-    int m_half_h_kernel, m_half_v_kernel;
+    int32 m_half_h_kernel, m_half_v_kernel;
     float m_pixel_threshold;
     float m_rejection_threshold;
     boost::shared_ptr<RemoveOutliersState> m_state;
 
   public:
-    RemoveOutliersFunc(int half_h_kernel, int half_v_kernel, float pixel_threshold, float rejection_threshold) :
+    RemoveOutliersFunc(int32 half_h_kernel, int32 half_v_kernel, float pixel_threshold, float rejection_threshold) :
       m_half_h_kernel(half_h_kernel), m_half_v_kernel(half_v_kernel),
       m_pixel_threshold(pixel_threshold), m_rejection_threshold(rejection_threshold),
       m_state( new RemoveOutliersState() ) {
@@ -190,12 +196,12 @@ namespace stereo {
                 ArgumentErr() << "RemoveOutliersFunc: half kernel sizes must be non-zero.");
     }
 
-    int half_h_kernel() const { return m_half_h_kernel; }
-    int half_v_kernel() const { return m_half_v_kernel; }
+    int32 half_h_kernel() const { return m_half_h_kernel; }
+    int32 half_v_kernel() const { return m_half_v_kernel; }
     float rejection_threshold() const { return m_rejection_threshold; }
     float pixel_threshold() const { return m_pixel_threshold; }
-    int rejected_points() const { return m_state->rejected_points; }
-    int total_points() const { return m_state->total_points; }
+    int32 rejected_points() const { return m_state->rejected_points; }
+    int32 total_points() const { return m_state->total_points; }
 
     BBox2i work_area() const { return BBox2i(Vector2i(-m_half_h_kernel, -m_half_v_kernel),
                                              Vector2i(m_half_h_kernel, m_half_v_kernel)); }
@@ -205,12 +211,12 @@ namespace stereo {
       m_state->total_points++;
 
       if (is_valid(*acc)) {
-        int matched = 0, total = 0;
+        int32 matched = 0, total = 0;
         PixelAccessorT row_acc = acc;
         row_acc.advance(-m_half_h_kernel,-m_half_v_kernel);
-        for(int yk = -m_half_v_kernel; yk <= m_half_v_kernel; ++yk) {
+        for(int32 yk = -m_half_v_kernel; yk <= m_half_v_kernel; ++yk) {
           PixelAccessorT col_acc = row_acc;
-          for(int xk = -m_half_h_kernel; xk <= m_half_h_kernel; ++xk) {
+          for(int32 xk = -m_half_h_kernel; xk <= m_half_h_kernel; ++xk) {
 
             if( is_valid(*col_acc) &&
                 fabs((*acc)[0]-(*col_acc)[0]) <= m_pixel_threshold &&
@@ -245,7 +251,7 @@ namespace stereo {
   template <class ViewT>
   UnaryPerPixelAccessorView<EdgeExtensionView<ViewT,ZeroEdgeExtension>, RemoveOutliersFunc<typename ViewT::pixel_type> >
   remove_outliers(ImageViewBase<ViewT> const& disparity_map,
-                  int half_h_kernel, int half_v_kernel,
+                  int32 half_h_kernel, int32 half_v_kernel,
                   double pixel_threshold,
                   double rejection_threshold) {
     typedef RemoveOutliersFunc<typename ViewT::pixel_type> func_type;
@@ -273,7 +279,7 @@ namespace stereo {
                                                        ZeroEdgeExtension>,
                                     RemoveOutliersFunc<typename ViewT::pixel_type> >
   disparity_clean_up(ImageViewBase<ViewT> const& disparity_map,
-                     int h_half_kernel, int v_half_kernel,
+                     int32 h_half_kernel, int32 v_half_kernel,
                      double pixel_threshold, double rejection_threshold) {
     // Remove outliers first using user specified parameters, and then
     // using a heuristic that isolates single pixel outliers.
@@ -290,10 +296,10 @@ namespace stereo {
   /// contrast pixels in the original image.
   class StdDevImageFunc : public UnaryReturnTemplateType<PixelTypeFromPixelAccessor>
   {
-    int m_kernel_width, m_kernel_height;
+    int32 m_kernel_width, m_kernel_height;
 
   public:
-    StdDevImageFunc(int kernel_width, int kernel_height) :
+    StdDevImageFunc(int32 kernel_width, int32 kernel_height) :
       m_kernel_width(kernel_width), m_kernel_height(kernel_height) {
       VW_ASSERT(m_kernel_width > 0 && m_kernel_height > 0,
                 ArgumentErr() << "StdDevImageFunc: kernel sizes must be non-zero.");
@@ -310,9 +316,9 @@ namespace stereo {
       pixel_type sum = 0;
       PixelAccessorT row_acc = acc;
       row_acc.advance(-m_kernel_width/2,-m_kernel_height/2);
-      for(int yk = -m_kernel_height/2; yk <= m_kernel_height/2; ++yk) {
+      for(int32 yk = -m_kernel_height/2; yk <= m_kernel_height/2; ++yk) {
         PixelAccessorT col_acc = row_acc;
-        for(int xk = -m_kernel_width/2; xk <= m_kernel_width/2; ++xk) {
+        for(int32 xk = -m_kernel_width/2; xk <= m_kernel_width/2; ++xk) {
           sum += *col_acc;
           col_acc.next_col();
         }
@@ -325,9 +331,9 @@ namespace stereo {
       sum = 0;
       row_acc = acc;
       row_acc.advance(-m_kernel_width/2,-m_kernel_height/2);
-      for(int yk = -m_kernel_height/2; yk <= m_kernel_height/2; ++yk) {
+      for(int32 yk = -m_kernel_height/2; yk <= m_kernel_height/2; ++yk) {
         PixelAccessorT col_acc = row_acc;
-        for(int xk = -m_kernel_width/2; xk <= m_kernel_width/2; ++xk) {
+        for(int32 xk = -m_kernel_width/2; xk <= m_kernel_width/2; ++xk) {
           pixel_type diff = *col_acc-mean;
           sum += diff*diff;
           col_acc.next_col();
@@ -341,7 +347,7 @@ namespace stereo {
   template <class ViewT, class EdgeT>
   UnaryPerPixelAccessorView<EdgeExtensionView<ViewT,EdgeT>, StdDevImageFunc>
   std_dev_image(ImageViewBase<ViewT> const& image,
-                int kernel_width, int kernel_height,
+                int32 kernel_width, int32 kernel_height,
                 EdgeT edge) {
     typedef UnaryPerPixelAccessorView<EdgeExtensionView<ViewT,EdgeT>, StdDevImageFunc> view_type;
     return view_type(edge_extend(image.impl(), edge),
@@ -350,7 +356,7 @@ namespace stereo {
   template <class ViewT>
   UnaryPerPixelAccessorView<EdgeExtensionView<ViewT,ZeroEdgeExtension>, StdDevImageFunc>
   std_dev_image(ImageViewBase<ViewT> const& image,
-                int kernel_width, int kernel_height) {
+                int32 kernel_width, int32 kernel_height) {
     typedef UnaryPerPixelAccessorView<EdgeExtensionView<ViewT,ZeroEdgeExtension>, StdDevImageFunc> view_type;
     return view_type(edge_extend(image.impl(), ZeroEdgeExtension()),
                      StdDevImageFunc (kernel_width, kernel_height));
@@ -467,45 +473,47 @@ namespace stereo {
 
     inline result_type operator()( int32 i, int32 j, int32 p=0 ) const {
       int32 ci = i << 1; int32 cj = j << 1;
-      result_type buffer;
-      float count = 0;
+      typedef typename AccumulatorType<typename PixelChannelType<result_type>::type>::type cnt_type;
+      typedef typename CompoundChannelCast<result_type, cnt_type>::type bff_type;
+      bff_type buffer = 0;
+      cnt_type count = 0;
       if ( is_valid( m_child(ci,cj,p) ) ) {
-        count+=1.0; buffer += m_child(ci,cj,p);
+        count+=10; buffer += 10*bff_type(m_child(ci,cj,p));
       }
       if ( is_valid( m_child(ci+1,cj,p) ) ) {
-        count+=0.5; buffer += 0.5*m_child(ci+1,cj,p);
+        count+=5; buffer += 5*bff_type(m_child(ci+1,cj,p));
       }
       if ( is_valid( m_child(ci,cj+1,p) ) ) {
-        count+=0.5; buffer += 0.5*m_child(ci,cj+1,p);
+        count+=5; buffer += 5*bff_type(m_child(ci,cj+1,p));
       }
       if ( is_valid( m_child(ci-1,cj,p) ) ) {
-        count+=0.5; buffer += 0.5*m_child(ci-1,cj,p);
+        count+=5; buffer += 5*m_child(ci-1,cj,p);
       }
       if ( is_valid( m_child(ci,cj-1,p) ) ) {
-        count+=0.5; buffer += 0.5*m_child(ci,cj-1,p);
+        count+=5; buffer += 5*m_child(ci,cj-1,p);
       }
       if ( is_valid( m_child(ci+1,cj+1,p) ) ) {
-        count+=0.2; buffer += 0.2*m_child(ci+1,cj+1,p);
+        count+=2; buffer += 2*m_child(ci+1,cj+1,p);
       }
       if ( is_valid( m_child(ci-1,cj-1,p) ) ) {
-        count+=0.2; buffer += 0.2*m_child(ci-1,cj-1,p);
+        count+=2; buffer += 2*m_child(ci-1,cj-1,p);
       }
       if ( is_valid( m_child(ci-1,cj+1,p) ) ) {
-        count+=0.2; buffer += 0.2*m_child(ci-1,cj+1,p);
+        count+=2; buffer += 2*m_child(ci-1,cj+1,p);
       }
       if ( is_valid( m_child(ci+1,cj-1,p) ) ) {
-        count+=0.2; buffer += 0.2*m_child(ci+1,cj-1,p);
+        count+=2; buffer += 2*m_child(ci+1,cj-1,p);
       }
       if ( count > 0 ) {
-        buffer.validate();
-        return buffer / (count*2.0 );
+        validate(buffer);
+        return buffer / (count*2 );
       }
       return result_type();
     }
 
     typedef DisparitySubsampleView<typename ImageT::prerasterize_type> prerasterize_type;
-    inline prerasterize_type prerasterize( BBox2i const& /*bbox*/ ) const {
-      return *this; }
+    inline prerasterize_type prerasterize( BBox2i const& bbox ) const {
+      return prerasterize_type(m_child.prerasterize(bbox)); }
     template <class DestT>
     inline void rasterize( DestT const& dest, BBox2i const& bbox ) const {
       vw::rasterize( prerasterize(bbox), dest, bbox );
@@ -540,8 +548,8 @@ namespace stereo {
     }
 
     typedef DisparityUpsampleView<typename ImageT::prerasterize_type> prerasterize_type;
-    inline prerasterize_type prerasterize( BBox2i const& /*bbox*/ ) const {
-      return *this; }
+    inline prerasterize_type prerasterize( BBox2i const& bbox ) const {
+      return prerasterize_type(m_child.prerasterize(bbox)); }
     template <class DestT>
     inline void rasterize( DestT const& dest, BBox2i const& bbox ) const {
       vw::rasterize( prerasterize(bbox), dest, bbox );

@@ -64,11 +64,6 @@ Makefile.in
 /src/vw/*/tests/TestInstantiateRecord
 /src/vw/*/tests/TestInstantiateFree
 
-# Generated files from the old tests
-/src/vw/Cartography/tests/*.cxx
-/src/vw/Geometry/tests/*.cxx
-/src/vw/HDR/tests/*.cxx
-
 # Documentation intermediates
 docs/workbook/*.aux
 docs/workbook/*.pdf
@@ -115,6 +110,7 @@ docs/workbook/workbook.toc
 /src/vw/FileIO/tests/TestEndianness
 /src/vw/FileIO/tests/TestExtTester
 /src/vw/FileIO/tests/TestGDALFeatures
+/src/vw/FileIO/tests/TestMemoryImageResource
 /src/vw/FileIO/tests/nodata.tif
 /src/vw/Geometry/tests/TestSpatialTree
 /src/vw/Geometry/tests/TestSphere
@@ -131,6 +127,7 @@ docs/workbook/workbook.toc
 /src/vw/gui/vwv
 /src/vw/HDR/tests/TestCameraCurve
 /src/vw/Image/tests/TestAlgorithms
+/src/vw/Image/tests/TestBlockRasterize
 /src/vw/Image/tests/TestConvolution
 /src/vw/Image/tests/TestEdgeExtension
 /src/vw/Image/tests/TestFilter
@@ -189,6 +186,7 @@ docs/workbook/workbook.toc
 /src/vw/Plate/plate2dem
 /src/vw/Plate/plate2plate
 /src/vw/Plate/plate2tiles
+/src/vw/Plate/plate2kml
 /src/vw/Plate/platereduce
 /src/vw/Plate/rebuild_index
 /src/vw/Plate/rpc_tool
@@ -201,6 +199,7 @@ docs/workbook/workbook.toc
 /src/vw/Plate/tests/TestIndexPage
 /src/vw/Plate/tests/TestLocalIndex
 /src/vw/Plate/tests/TestModPlate
+/src/vw/Plate/tests/TestPlateManager
 /src/vw/Plate/tests/TestRpc
 /src/vw/Plate/tests/TestRpcChannel
 /src/vw/Plate/tests/TestTileManipulation

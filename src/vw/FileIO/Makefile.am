@@ -12,13 +12,13 @@
 if MAKE_MODULE_FILEIO
 
 if HAVE_PKG_PNG
-png_headers = DiskImageResourcePNG.h
-png_sources = DiskImageResourcePNG.cc
+png_headers = DiskImageResourcePNG.h  MemoryImageResourcePNG.h  PngIO.h
+png_sources = DiskImageResourcePNG.cc MemoryImageResourcePNG.cc PngIO.cc
 endif
 
 if HAVE_PKG_JPEG
-jpeg_headers = DiskImageResourceJPEG.h
-jpeg_sources = DiskImageResourceJPEG.cc
+jpeg_headers = DiskImageResourceJPEG.h  MemoryImageResourceJPEG.h  JpegIO.h
+jpeg_sources = DiskImageResourceJPEG.cc MemoryImageResourceJPEG.cc JpegIO.cc
 endif
 
 if HAVE_PKG_TIFF
@@ -39,8 +39,8 @@ hdf_sources = DiskImageResourceHDF.cc
 endif
 
 if HAVE_PKG_GDAL
-gdal_headers = DiskImageResourceGDAL.h
-gdal_sources = DiskImageResourceGDAL.cc
+gdal_headers = DiskImageResourceGDAL.h  MemoryImageResourceGDAL.h  GdalIO.h
+gdal_sources = DiskImageResourceGDAL.cc MemoryImageResourceGDAL.cc GdalIO.cc
 endif
 
 include_HEADERS = \
@@ -48,7 +48,9 @@ include_HEADERS = \
   DiskImageResourcePBM.h \
   DiskImageResourcePDS.h \
   DiskImageView.h \
+  MemoryImageResource.h \
   KML.h \
+  ScanlineIO.h \
   $(gdal_headers) \
   $(hdf_headers) \
   $(jpeg_headers) \
@@ -61,6 +63,8 @@ libvwFileIO_la_SOURCES = \
   DiskImageResourcePBM.cc \
   DiskImageResourcePDS.cc \
   KML.cc \
+  MemoryImageResource.cc \
+  ScanlineIO.cc \
   $(gdal_sources) \
   $(hdf_sources) \
   $(jpeg_sources) \

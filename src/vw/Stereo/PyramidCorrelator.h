@@ -20,54 +20,17 @@ namespace vw {
 namespace stereo {
   class PyramidCorrelator {
 
-    BBox2 m_initial_search_range;
+    BBox2f m_initial_search_range;
     Vector2i m_kernel_size;
     float m_cross_correlation_threshold;
     float m_corrscore_rejection_threshold;
-    int m_cost_blur;
+    int32 m_cost_blur;
     stereo::CorrelatorType m_correlator_type;
-    int m_pyramid_levels;
-    int m_min_subregion_dim;
+    size_t m_pyramid_levels;
+    int32 m_min_subregion_dim;
     typedef PixelMask<Vector2f> PixelDisp;
 
     std::string m_debug_prefix;
-
-    // Reduce the image size by a factor of two by averaging the pixels
-    template <class PixelT>
-    ImageView<PixelT> subsample_by_two(ImageView<PixelT> &img) {
-
-      ImageView<PixelT> outImg(img.cols()/2, img.rows()/2,img.planes());
-      int32 i, j, p;
-
-      for (p = 0; p < outImg.planes() ; p++) {
-        for (i = 0; i < outImg.cols(); i++) {
-          for (j = 0; j < outImg.rows(); j++) {
-            outImg(i,j,p) = PixelT(0);
-            outImg(i,j,p) += img(2*i     , 2*j    ,p);
-            outImg(i,j,p) += img(2*i + 1 , 2*j    ,p);
-            outImg(i,j,p) += img(2*i     , 2*j + 1,p);
-            outImg(i,j,p) += img(2*i + 1 , 2*j + 1,p);
-            outImg(i,j,p) /= 4;
-          }
-        }
-      }
-      return outImg;
-    }
-
-    template <class PixelT>
-    ImageView<PixelT> upsample_by_two(ImageView<PixelT> &img) {
-      ImageView<PixelT> outImg(img.cols()*2, img.rows()*2,img.planes());
-      int32 i, j, p;
-
-      for (p = 0; p < outImg.planes() ; p++) {
-        for (i = 0; i < outImg.cols(); i++) {
-          for (j = 0; j < outImg.rows(); j++) {
-            outImg(i,j,p) = img(i/2, j/2, p);
-          }
-        }
-      }
-      return outImg;
-    }
 
     // Reduce the image size by a factor of two by averaging the pixels
     template <class MaskPixelT>
@@ -93,26 +56,26 @@ namespace stereo {
     }
 
     // Iterate over the nominal blocks, creating output blocks for correlation
-    BBox2 compute_matching_blocks(BBox2i const& nominal_block,
-                                  BBox2 search_range,
-                                  BBox2i &left_block, BBox2i &right_block);
+    BBox2f compute_matching_blocks(BBox2i const& nominal_block,
+				   BBox2f const& search_range,
+				   BBox2i &left_block, BBox2i &right_block);
 
-    std::vector<BBox2>
+    std::vector<BBox2f>
     compute_search_ranges(ImageView<PixelDisp> const& prev_disparity_map,
                           std::vector<BBox2i> const& nominal_blocks);
 
-    void write_debug_images(int n, ImageViewRef<PixelDisp> const& disparity_map,
-                            std::vector<BBox2i> nominal_blocks);
+    void write_debug_images(int32 n, ImageViewRef<PixelDisp> const& disparity_map,
+                            std::vector<BBox2i> const& nominal_blocks);
     std::vector<BBox2i>
     subdivide_bboxes(ImageView<PixelDisp> const& disparity_map,
-                     ImageView<PixelMask<uint32> > const& valid_pad,
+                     ImageView<PixelMask<uint8> > const& valid_pad,
                      BBox2i const& box);
 
     template <class ViewT>
-    int count_valid_pixels(ImageViewBase<ViewT> const& img) {
+    size_t count_valid_pixels(ImageViewBase<ViewT> const& img) {
       typedef typename ViewT::const_iterator view_iter;
 
-      int count = 0;
+      size_t count = 0;
       for (view_iter i = img.impl().begin(); i != img.impl().end(); i++) {
         if (i->valid())
           count++;
@@ -133,16 +96,16 @@ namespace stereo {
                    std::vector<ImageView<uint8> > right_masks,
                    PreProcFilterT const& preproc_filter) {
 
-      BBox2 initial_search_range =
-        m_initial_search_range / pow(2.0, m_pyramid_levels-1);
-      ImageView<PixelMask<Vector2f> > disparity_map;
+      BBox2f initial_search_range =
+        m_initial_search_range / pow(2.0f, m_pyramid_levels-1);
+      ImageView<PixelDisp > disparity_map;
 
       // Overall Progress Bar
       TerminalProgressCallback prog( "stereo", "Pyr Search:", DebugMessage);
 
       // Refined the disparity map by searching in the local region
       // where the last good disparity value was found.
-      for (int n = m_pyramid_levels - 1; n >=0; --n) {
+      for (ssize_t n = ssize_t(m_pyramid_levels) - 1; n >=0; --n) {
         std::ostringstream current_level;
         current_level << n;
 
@@ -159,14 +122,14 @@ namespace stereo {
         //    We also build a list of search ranges from the previous
         //    level's disparity map.  If this is the first level of the
         //    pyramid, we go with the full search range.
-        std::vector<BBox2> search_ranges;
+        std::vector<BBox2f> search_ranges;
         std::vector<BBox2i> nominal_blocks;
-        if (n == (m_pyramid_levels-1) ) {
+        if (n == (ssize_t(m_pyramid_levels)-1) ) {
           nominal_blocks.push_back(BBox2i(0,0,left_pyramid[n].cols(),
                                           left_pyramid[n].rows()));
           search_ranges.push_back(initial_search_range);
         } else {
-          std::vector<vw::uint32> x_kern(m_kernel_size.x()),
+          std::vector<uint8> x_kern(m_kernel_size.x()),
             y_kern(m_kernel_size.y());
           std::fill(x_kern.begin(), x_kern.end(), 1);
           std::fill(y_kern.begin(), y_kern.end(), 1);
@@ -177,12 +140,12 @@ namespace stereo {
           // subdivide_bboxes from rejecting subregions that may
           // actually later get filled with valid pixels at a higher
           // scale (which helps prevent 'cutting' into the disparity map)
-          ImageViewRef<uint32> valid =
-            apply_mask(copy_mask(constant_view<uint32>(1, disparity_map.cols(),
-                                                       disparity_map.rows()),
-                                 disparity_map));
-          ImageView<PixelMask<uint32> > valid_pad =
-            create_mask(separable_convolution_filter(valid, x_kern, y_kern));
+          // ImageViewRef<uint32> valid =
+          //   apply_mask(copy_mask(constant_view<uint32>(1, disparity_map.cols(),
+          //                                              disparity_map.rows()),
+          //                        disparity_map));
+          ImageView<PixelMask<uint8> > valid_pad =
+            create_mask(separable_convolution_filter(apply_mask(copy_mask(constant_view<uint8>(1, disparity_map.cols(), disparity_map.rows()), disparity_map)), x_kern, y_kern));
 
           nominal_blocks = subdivide_bboxes(disparity_map, valid_pad,
                                             BBox2i(0,0,left_pyramid[n].cols(),
@@ -190,7 +153,7 @@ namespace stereo {
           search_ranges = compute_search_ranges(disparity_map, nominal_blocks);
         }
 
-        for (unsigned r = 0; r < nominal_blocks.size(); ++r) {
+        for (size_t r = 0; r < nominal_blocks.size(); ++r) {
           subbar.report_progress((float)r/nominal_blocks.size());
 
           // Given a block from the left image, compute the bounding
@@ -212,7 +175,7 @@ namespace stereo {
           right_image_workarea.crop(right_image_bounds);
           if (right_image_workarea.width() == 0 ||
               right_image_workarea.height() == 0) { continue; }
-          BBox2 adjusted_search_range =
+          BBox2f adjusted_search_range =
             compute_matching_blocks(nominal_blocks[r],
                                     search_ranges[r], left_block, right_block);
 
@@ -235,7 +198,7 @@ namespace stereo {
 
           disparity_block =
             this->correlate( block1, block2, adjusted_search_range,
-                             Vector2(h_disp_offset, v_disp_offset),
+                             Vector2f(h_disp_offset, v_disp_offset),
                              preproc_filter );
 
           crop(new_disparity_map, nominal_blocks[r]) =
@@ -249,19 +212,18 @@ namespace stereo {
         // resolution levels of the pyramid.  These are some settings that
         // seem to work well in practice.
         int32 rm_half_kernel = 5;
-        double rm_min_matches_percent = 0.5;
-        double rm_threshold = 3.0;
+        float rm_min_matches_percent = 0.5;
+        float rm_threshold = 3.0;
 
 
-        ImageView<PixelDisp> disparity_map_clean;
-        disparity_map_clean =
+        ImageView<PixelDisp> disparity_map_clean =
           disparity_mask(disparity_clean_up(new_disparity_map,
                                             rm_half_kernel, rm_half_kernel,
                                             rm_threshold,
                                             rm_min_matches_percent),
                          left_masks[n], right_masks[n]);
 
-        if (n == m_pyramid_levels - 1) {
+        if (n == ssize_t(m_pyramid_levels) - 1) {
           // At the highest level of the pyramid, use the cleaned version
           // of the disparity map just obtained (since there are no
           // previous results to learn from)
@@ -274,12 +236,11 @@ namespace stereo {
           // If we have a missing pixel that correlated properly in
           // the previous pyramid level, use the disparity found at
           // the previous pyramid level
-          ImageView<PixelDisp > disparity_map_old;
-          disparity_map_old =
-            2*crop(edge_extend(upsample_by_two(disparity_map),
-                               ZeroEdgeExtension()),
-                   BBox2i(0, 0, disparity_map_clean.cols(),
-                          disparity_map_clean.rows()));
+          ImageView<PixelDisp > disparity_map_old =
+	    crop(edge_extend(disparity_upsample(disparity_map),
+			     ZeroEdgeExtension()),
+		 BBox2i(0, 0, disparity_map_clean.cols(),
+			disparity_map_clean.rows()));
           ImageView<PixelDisp > disparity_map_old_diff =
             invert_mask(intersect_mask(disparity_map_old, disparity_map_clean));
           disparity_map =
@@ -300,7 +261,8 @@ namespace stereo {
     template <class ViewT, class PreProcFilterT>
     ImageView<PixelDisp > correlate(ImageViewBase<ViewT> const& left_image,
                                     ImageViewBase<ViewT> const& right_image,
-                                    BBox2 search_range, Vector2 offset,
+                                    BBox2f const& search_range,
+				    Vector2f const& offset,
                                     PreProcFilterT const& preproc_filter) {
 
       stereo::OptimizedCorrelator correlator( BBox2i(Vector2i(int(floor(search_range.min().x())), int(ceil(search_range.min().y()))),
@@ -313,13 +275,7 @@ namespace stereo {
                                                  right_image.impl(),
                                                  preproc_filter);
 
-      for (int j = 0; j < result.rows(); ++j)
-        for (int i = 0; i < result.cols(); ++i)
-          if ( is_valid(result(i,j)) ) {
-            result(i,j)[0] += offset[0];
-            result(i,j)[1] += offset[1];
-          }
-      return result;
+      return result + PixelDisp(offset);
     }
 
   public:
@@ -328,13 +284,13 @@ namespace stereo {
     ///
     /// Set pyramid_levels to 0 to force the use of a single pyramid
     /// level (essentially disabling pyramid correlation).
-    PyramidCorrelator(BBox2 initial_search_range,
+    PyramidCorrelator(BBox2f initial_search_range,
                       Vector2i kernel_size,
                       float cross_correlation_threshold = 1,
                       float corrscore_rejection_threshold = 1.0,
-                      int cost_blur = 1,
+                      int32 cost_blur = 1,
                       stereo::CorrelatorType correlator_type = ABS_DIFF_CORRELATOR,
-                      int pyramid_levels = 4) :
+                      size_t pyramid_levels = 4) :
       m_initial_search_range(initial_search_range),
       m_kernel_size(kernel_size),
       m_cross_correlation_threshold(cross_correlation_threshold),
@@ -384,21 +340,21 @@ namespace stereo {
       std::vector<ImageView<channel_type> > left_pyramid(m_pyramid_levels), right_pyramid(m_pyramid_levels);
       std::vector<ImageView<uint8> > left_masks(m_pyramid_levels), right_masks(m_pyramid_levels);
 
-      left_pyramid[0] = channels_to_planes(left_image);    // Is this really what we want
-      right_pyramid[0] = channels_to_planes(right_image);  // shouldn't we channel cast to
-      left_masks[0] = channels_to_planes(left_mask);       // to scalar?
-      right_masks[0] = channels_to_planes(right_mask);
+      left_pyramid[0] =  pixel_cast<channel_type>(left_image);
+      right_pyramid[0] = pixel_cast<channel_type>(right_image);
+      left_masks[0] =    pixel_cast<uint8>(left_mask);
+      right_masks[0] =   pixel_cast<uint8>(right_mask);
 
       // Produce the image pyramid
-      for (int n = 1; n < m_pyramid_levels; ++n) {
-        left_pyramid[n] = subsample_by_two(left_pyramid[n-1]);
-        right_pyramid[n] = subsample_by_two(right_pyramid[n-1]);
-        left_masks[n] = subsample_mask_by_two(left_masks[n-1]);
-        right_masks[n] = subsample_mask_by_two(right_masks[n-1]);
+      for (size_t n = 1; n < m_pyramid_levels; ++n) {
+	left_pyramid[n] =  subsample(gaussian_filter(left_pyramid[n-1],1.2),2);
+	right_pyramid[n] = subsample(gaussian_filter(right_pyramid[n-1],1.2),2);
+        left_masks[n] =    subsample_mask_by_two(left_masks[n-1]);
+        right_masks[n] =   subsample_mask_by_two(right_masks[n-1]);
       }
 
-      int mask_padding = std::max(m_kernel_size[0], m_kernel_size[1])/2;
-      for (int n = 0; n < m_pyramid_levels; ++n) {
+      int32 mask_padding = std::max(m_kernel_size[0], m_kernel_size[1])/2;
+      for (size_t n = 0; n < m_pyramid_levels; ++n) {
         left_masks[n] = apply_mask(edge_mask(left_masks[n], 0, mask_padding),0);
         right_masks[n] = apply_mask(edge_mask(right_masks[n], 0, mask_padding),0);
       }

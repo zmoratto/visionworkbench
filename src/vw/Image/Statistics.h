@@ -172,6 +172,8 @@ namespace vw {
           else if ( arg[i] > m_max[i] ) m_max[i] = arg[i];
     }
 
+    bool is_valid() const { return m_valid; }
+
     ValT minimum() const {
       VW_ASSERT(m_valid, ArgumentErr() << "EWMinMaxAccumulator: no valid samples" );
       return m_min;
@@ -244,7 +246,7 @@ namespace vw {
   public:
     template <class ArgT>
     void operator()( ArgT const& pix ) {
-      if ( is_valid(pix) )
+      if ( ::vw::is_valid(pix) )
         AccumT::operator()( remove_mask( pix ) );
     }
   };

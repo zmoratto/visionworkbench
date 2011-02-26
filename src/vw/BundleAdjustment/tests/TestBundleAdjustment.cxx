@@ -10,6 +10,7 @@
 #include <vw/Math/Vector.h>
 #include <vw/Math/EulerAngles.h>
 #include <vw/Math/LinearAlgebra.h>
+#include <vw/Math/MatrixSparseSkyline.h>
 #include <test/Helpers.h>
 
 #include <vw/Camera/PinholeModel.h>
@@ -194,7 +195,6 @@ protected:
   boost::shared_ptr<ControlNetwork> cnet;
 };
 
-
 // Null Tests
 // -----------------------
 TEST_F( NullTest, AdjustRef ) {
@@ -318,7 +318,7 @@ TEST_F( ComparisonTest, Ref_VS_Sparse ) {
 
   // Comparison
   for ( uint32 i = 0; i < 5; i++ )
-    EXPECT_VECTOR_NEAR( ref_solution[i],
+    ASSERT_VECTOR_NEAR( ref_solution[i],
                         spr_solution[i],
                         1e-3 );
 }
@@ -362,7 +362,7 @@ TEST_F( ComparisonTest, RobustRef_VS_RobustSparse ) {
 
   // Comparison
   for ( uint32 i = 0; i < 5; i++ )
-    EXPECT_VECTOR_NEAR( ref_solution[i],
+    ASSERT_VECTOR_NEAR( ref_solution[i],
                         spr_solution[i],
                         1e-2 );
 }
@@ -404,7 +404,7 @@ TEST_F( ComparisonTest, RobustSparse_VS_RobustSparseKGCP ) {
 
   // Comparison
   for ( uint32 i = 0; i < 5; i++ )
-    EXPECT_VECTOR_NEAR( spr_solution[i],
+    ASSERT_VECTOR_NEAR( spr_solution[i],
                         sprkgcp_solution[i],
                         1e-3 );
 }

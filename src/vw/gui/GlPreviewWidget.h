@@ -43,6 +43,8 @@ class QPoint;
 namespace vw {
 namespace gui {
 
+  void check_gl_errors();
+
   // A simple class for keeping track of crosshair locations and colors.
   class PointList {
     std::list<vw::Vector2> m_points;
@@ -77,7 +79,7 @@ namespace gui {
     GlPreviewWidget(QWidget *parent, std::string filename, QGLFormat const& frmt, int transaction_id);
     virtual ~GlPreviewWidget();
 
-    virtual GLuint allocate_texture(boost::shared_ptr<ViewImageResource> tile);
+    virtual GLuint allocate_texture(boost::shared_ptr<SrcImageResource> tile);
     virtual void deallocate_texture(GLuint texture_id);
 
     // Set a default size for this widget.  This is usually overridden
@@ -94,10 +96,8 @@ namespace gui {
     // GlPreviewWidget when new textures are available for drawing.
     // Timer callback is called 30 times per second.
     void timer_callback() {
-      if (m_needs_redraw) {
-        update();
-        m_needs_redraw = false;
-      }
+      update();
+      check_gl_errors();
     }
 
     void set_nodata_value(float nodata_value) {
@@ -113,7 +113,6 @@ namespace gui {
       m_image_max = result[1];
       m_offset = -m_image_min;
       m_gain = 1/(m_image_max-m_image_min);
-      update();
     }
 
   protected:
