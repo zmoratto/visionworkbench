@@ -44,8 +44,8 @@ namespace
                            OrbitalReading::timestamp_t time)
     {
       PositionVelocity pv;
-      pv.velocity = va.acceleration * (double)time;
-      pv.position = va.velocity*(double)time;
+      pv.velocity = va.acceleration * time;
+      pv.position = va.velocity * time;
       return pv;
     }
     
