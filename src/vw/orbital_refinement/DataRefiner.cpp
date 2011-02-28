@@ -1,5 +1,6 @@
 #include "DataRefiner.hpp"
 #include "OrbitalReading.hpp"
+#include "TrajectoryGradientSet.hpp"
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 #include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
@@ -9,12 +10,15 @@
 #include <list>
 
 #include <vw/Math/Vector.h>
+#include <vw/Math/ConjugateGradient.h>
 #include <vector>
 #include <cmath>
 #include <limits>
 // For output stream debug, remove these later
 #include <cstdlib>
 #include <iostream>
+
+using namespace vw::math;
 
 // Putting a function in an anonymous namespace makes it local to the file.
 // We might consider making these private functions instead, especially if
@@ -29,6 +33,7 @@ namespace
   double sM=M/sGM;
   double GM=G*M;
   double INF = std::numeric_limits<double>::infinity();
+  double OPT_TOLERANCE = .1;
 
 
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
@@ -410,16 +415,32 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       velocity[k] = *it;
   }
 
-
-  // Calculate the preliminary orbit
-
-  TrajectoryDecisionVariableSet decVars(GM, position, velocity, readings);
+  // Initialize all the components
+  TrajectoryDecisionVariableSet tempResult(GM, position, velocity, readings);
 
   TrajectoryErrorEstimator errorEst(readings);
 
-  double error = errorEst(decVars);
+  double lastError = 0;
+  double error = 0;
+  double deltaError = 0;
 
-  TrajectoryGradientSet gradient = errorEst.gradient(decVars);
+  // For loop to optimize orbit
+
+  do {
+      // Create the variable set for the current values
+      TrajectoryDecisionVariableSet tempVars(tempResult.GM, tempResult.p0, tempResult.v0, readings);
+
+      // Remember the previous error
+      lastError = error;
+      // Calculate the error for the new variable set
+      error = errorEst(tempVars);
+      // Calculate the delta
+      deltaError = error - lastError;
+
+      // Call conjugate_gradient to get the next set of values for optimizing
+      tempResult = conjugate_gradient(errorEst, tempVars, ArmijoStepSize(), 500);
+      
+  } while(deltaError > OPT_TOLERANCE);
   
 
 /*
