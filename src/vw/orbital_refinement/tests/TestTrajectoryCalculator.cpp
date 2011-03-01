@@ -118,3 +118,63 @@ TEST( TrajectoryCalculator, StraightLine ) {
     cur_v = next_v;
   }
 }
+
+TEST( TrajectoryCalculator, AllPointsAtOnce ) {
+    // This is just like the circle test, but you
+    // get all points all at once instead of one at a time.
+  
+  // Approximate radius of our readings (meters).
+  double r0 = 1860000;
+  double GM = GravityConstants::GM_MOON_MILLISECOND;
+  // speed (magnitude of velocity) at the given radius that
+  // should result in a circular orbit (m/millisecond)
+  double s0 = sqrt(GM/r0);
+  const double PI = acos((long double)-1);
+  // Total time expected to do a full revolution (in milliseconds)
+  OrbitalReading::timestamp_t period = 2*PI*r0/s0;
+
+  // 20 seconds, a typical time between readings.
+  OrbitalReading::timestamp_t delta_t = 20000;
+
+  // Number of readings to do a full revolution
+  int reading_count = (int)(period/delta_t);
+
+  // Now re-adjust the time delta so we do an exact revolution
+  delta_t = period / reading_count;
+
+    // Fill in a vector of time values
+  std::vector<OrbitalReading::timestamp_t> times(reading_count);
+  for (int i = 0; i < reading_count; ++i)
+    times[i] = delta_t * i;
+
+  // Start at the top of the circle,
+  // moving tangent to the circle
+  Vector3 p0( 0,r0, 0);
+  Vector3 v0(s0, 0, 0);
+
+    // Create a place to store the results
+  std::vector<vw::Vector3> estimated_locations(reading_count);
+
+    // Get all the points
+  GravityAccelerationFunctor gravity(GM);
+  TrajectoryCalculator calc(gravity);
+  calc.calculateAllPoints(p0, v0, times, estimated_locations);
+
+  // Check if we moved in a circle in the z=0 plane.
+  // constant radius
+  for (int i = 0; i < reading_count; i++)
+  {
+    // The radius for the new point should be about the same
+    // as the starting radius.
+    double r = norm_2(estimated_locations[i]);
+    EXPECT_NEAR(r, r0, 100);
+
+    // The position should be in the z=0 plane
+    EXPECT_EQ(estimated_locations[i][2], 0);
+
+    // The position should be the appropriate proportion around the circle
+    double angle = PI/2 - 2*PI*(i)/reading_count;
+    EXPECT_NEAR(estimated_locations[i][0]/r, cos(angle), .01);
+    EXPECT_NEAR(estimated_locations[i][1]/r, sin(angle), .01);
+  }
+}

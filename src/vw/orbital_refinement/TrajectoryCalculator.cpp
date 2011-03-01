@@ -80,7 +80,7 @@ void TrajectoryCalculator::calculateNextPoint(
     vw::Vector3 cur_velocity,
     OrbitalReading::timestamp_t time_delta,
     vw::Vector3& next_location,
-    vw::Vector3& next_velocity)
+    vw::Vector3& next_velocity) const
 {
   vw::math::RungeKutta rk;
 
@@ -100,3 +100,28 @@ void TrajectoryCalculator::calculateNextPoint(
   next_location = end_state.position;
   next_velocity = end_state.velocity;
 }
+
+void TrajectoryCalculator::calculateAllPoints(
+    vw::Vector3 p0,
+    vw::Vector3 v0,
+    const std::vector<OrbitalReading::timestamp_t>& times,
+    std::vector<vw::Vector3>& estimated_locations) const
+{
+    // Make sure there's enough space to hold all the locations.
+  estimated_locations.reserve(times.size());
+
+    // Set the initial location
+  estimated_locations[0] = p0;
+
+    // calculate the rest of the locations
+  for (std::size_t i = 1; i < times.size(); i++)
+  {
+      // This stores the next estimated position and velocity in
+      // estimated_locations[i] and v0, respectively.  We use those
+      // as input to the next calculation.
+    calculateNextPoint(estimated_locations[i-1], v0,
+                       times[i] - times[i-1],
+                       estimated_locations[i], v0);
+  }
+}
+
