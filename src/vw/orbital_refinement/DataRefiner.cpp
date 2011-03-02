@@ -348,11 +348,11 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
 
     // We start each iteration through the loop with a guess for our decision variables,
     // plus a set of weights for each point based on the previous guess.
-  unsigned int iteration_count = 0;
+  uint32 iteration_count = 0;
   while (true)
   {
-    const unsigned int MAX_CG_ITERATIONS = 500;
-    const unsigned int MAX_OUTER_ITERATIONS = 300;
+    const uint32 MAX_CG_ITERATIONS = 500;
+    const uint32 MAX_OUTER_ITERATIONS = 300;
 
       // Minimize the weighted error
     decision_vars = conjugate_gradient(error_func, decision_vars,
