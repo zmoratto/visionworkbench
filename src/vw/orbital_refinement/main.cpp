@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
     }
 
     // Break the readings into orbits
-    std::list< std::list<OrbitalReading> > orbits;
+    /*std::list< std::list<OrbitalReading> > orbits;
     divideByOrbit(orbits, readings);
 
     for (std::list< std::list<OrbitalReading> >::iterator read_orb = orbits.begin();
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
             std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
             return 1;
         }
-    }
+    }*/
     
 
     // Write out the data back into a CSV file
