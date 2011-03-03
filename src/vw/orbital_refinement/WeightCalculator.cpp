@@ -63,7 +63,35 @@ void WeightCalculator::calculateWeights(const std::list<OrbitalReading>& observa
                            const std::vector<vw::Vector3>& estimated_locations,
                             std::vector<double>& weights)
 {
-   
+ 
+   //Calculate time variance
+   //Create a vector of the Error vectors (R)
+   std::vector<vw::Vector3> eTmp;
+   std::vector<double> errors;
+   std::vector<vw::Vector3> normalError;
+   int i;
+   double x2, y2, z2;
+   float meanOfWeights = 0;
+
+   for(i = 0; i<observations.size();i++)
+   {
+      eTmp = estimated_locations[i] - observations[i];
+      x2 = (eTmp->mCoord[0]) * (eTmp->mCoord[0]);
+      y2 = (eTmp->mCoord[1]) * (eTmp->mCoord[1]);
+      z2 = (eTmp->mCoord[2]) * (eTmp->mCoord[2]);
+      normalError = sqrt(x2 + y2 + z2);
+      //Find just the R component of the error. 
+      //TODO Link the dot_prod function in
+      errors.push_back( dot_prod(normalError, observations[i] );
+   }
+   //Call the robust mean function on it
+   meanOfWeights = smart_weighted_mean(weights,
+                        &errors,
+                        .5, //Test Value, get good ones later
+                        .5, //Test Value
+                        10);//Test Value
+
+   //Factor in the time
    return;
 }
 

@@ -14,6 +14,12 @@ public:
   void calculateWeights(const std::list<OrbitalReading>& observations,
                         const std::vector<vw::Vector3>& estimated_locations,
                         std::vector<double>& weights);
+  float smart_weighted_mean(std::vector<float>& weights,
+                           std::vector<float> const & samples,
+                           float const sign_level,
+                           float const learn_rate,
+                           float const error_tol, 
+                           long const max_iter);
 
 private:
 
