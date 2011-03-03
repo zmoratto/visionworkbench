@@ -1,6 +1,10 @@
 #ifndef WEIGHT_CALCULATOR_HPP
 #define WEIGHT_CALCULATOR_HPP
 
+#include <list>
+#include <vw/Math/Vector.h>
+#include <vw/orbital_refinement/OrbitalReading.hpp>
+
 class WeightCalculator
 {
 public:
@@ -9,7 +13,7 @@ public:
 
   void calculateWeights(const std::list<OrbitalReading>& observations,
                         const std::vector<vw::Vector3>& estimated_locations,
-                        std::vector<bool>& weights);
+                        std::vector<double>& weights);
 
 private:
 
@@ -17,7 +21,7 @@ private:
                            std::vector<double>& v,
                            double mean);
 
-    void timeVarianceCalcuator(
+    void timeVarianceCalculator(
                         const std::list<OrbitalReading>& observations,
                         std::vector<double>& timeWeights);
 };

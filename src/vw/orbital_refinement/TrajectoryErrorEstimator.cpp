@@ -1,14 +1,26 @@
 #include <vw/orbital_refinement/TrajectoryErrorEstimator.hpp>
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
-
+#include <cassert>
 
 using namespace vw;
 
 TrajectoryErrorEstimator::TrajectoryErrorEstimator(
-    const std::list<OrbitalReading>& observations) 
-        : _observations(observations)
+    const std::list<OrbitalReading>& observations)
+        : _default_weights(observations.size(), 1),
+          _observations(observations),
+          _weights(_default_weights)
 {
+  _gradient.t.resize(observations.size());
+}
+
+TrajectoryErrorEstimator::TrajectoryErrorEstimator(
+    const std::list<OrbitalReading>& observations,
+    const std::vector<double>& weights) 
+        : _observations(observations),
+          _weights(weights)
+{
+  assert(_weights.size() >= observations.size());
   _gradient.t.resize(observations.size());
 }
 
@@ -129,12 +141,19 @@ double TrajectoryErrorEstimator::calculatePositionError(
     const OrbitalReading& observation,
     bool calculate_gradient)
 {
+  if (_weights[index] == 0)
+  {
+    if (calculate_gradient)
+      _gradient.t[index] = 0;
+    return 0;
+  }
+  
   Vector3 this_err = calculated_position - observation.mCoord;
   
   if (calculate_gradient)
-    _gradient.t[index] = 2*dot_prod(this_err,calculated_velocity);
+    _gradient.t[index] = 2*_weights[index]*dot_prod(this_err,calculated_velocity);
   
-  return dot_prod(this_err,this_err);
+  return _weights[index] * norm_2(this_err);
 }
 
 // We just return what we've already calculated.  This behavior relies

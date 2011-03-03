@@ -56,6 +56,19 @@ namespace
     }
   }
 
+    void denormalizeReadingsByTime(std::list<OrbitalReading>& readings,
+                                   OrbitalReading::timestamp_t base_time)
+  {
+    // denormalize the time readings by adding the base time
+    // to all of the timestamps.
+    for (std::list<OrbitalReading>::iterator it = readings.begin();
+      it != readings.end();
+      it++)
+    {
+      it->mTime += base_time;
+    }
+  }
+
 //   std::vector<double> calculateDifferences(std::vector<double> initial)
 //   {
 //       // Correctly size the vector
@@ -315,7 +328,8 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
 {
   // Remember the minTime that we're about to normalize on, we have to use
   // it later
-  double minTime = readings.front().mTime;
+  readings.sort(OrbitalReading::TimestampLess());
+  OrbitalReading::timestamp_t min_time = readings.front().mTime;
 
   // Next, normalize times so that it starts at t=0
   normalizeReadingsByTime(readings);
@@ -330,7 +344,8 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
       readings.begin()->mCoord, v0, readings);
 
     // Create data structures to hold weights and estimated locations.
-  std::vector<bool> weights(readings.size());
+    // Weights are all initialized to 0.5
+  std::vector<double> weights(readings.size(), 0.5);
   std::vector<Vector3> estimated_locations(readings.size());
 
     // Calculate an initial set of locations
@@ -341,10 +356,11 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   
     // Calculate an initial set of weights
   WeightCalculator weight_calc;
-  weight_calc.calculateWeights(readings, estimated_locations, weights);
+    // To do:  Not sure if we're supposed to do this before the first time through or not.
+//  weight_calc.calculateWeights(readings, estimated_locations, weights);
 
     // Create an error estimator
-  TrajectoryErrorEstimator error_func(readings);
+  TrajectoryErrorEstimator error_func(readings, weights);
 
     // We start each iteration through the loop with a guess for our decision variables,
     // plus a set of weights for each point based on the previous guess.
@@ -372,8 +388,10 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
     weight_calc.calculateWeights(readings, estimated_locations, weights);
   }
 
-    // to do:  de-normalize times,
-    //         do whatever needs to be done to return the data to the caller.
+  // Next, normalize times so that it starts at t=0
+  denormalizeReadingsByTime(readings, min_time);
+  
+    // to do:  do whatever needs to be done to return the data to the caller.
   
   return true;
 }
@@ -470,7 +488,7 @@ static bool oldRefineOrbitalReadings(std::list<OrbitalReading>& readings)
   convolutionFunction(pb, times, halfMatrix);
 
   // DEBUG FOR CONVOLUTION
-  /*int j = 1;
+  //int j = 1;
   std::cout << "Orbit size: " << orbit.size() << std::endl;
   for (std::list<double>::iterator it = pb.begin();
       it != pb.end(); it++, j++)

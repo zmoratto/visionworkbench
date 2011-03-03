@@ -2,6 +2,7 @@
 #define TRAJECTORY_ERROR_ESTIMATOR_HPP
 
 #include <list>
+#include <vector>
 #include <vw/orbital_refinement/OrbitalReading.hpp>
 #include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
@@ -21,6 +22,13 @@ public:
   /// list of observations.  It must not be destroyed or allowed to
   /// go out of scope until after this error estimator is done being used.
   TrajectoryErrorEstimator(const std::list<OrbitalReading>& observations);
+
+  /// The error estimator will hold a reference to the passed-in
+  /// list of observations and the passed in list of weights.
+  /// Neither must not be destroyed or allowed to
+  /// go out of scope until after this error estimator is done being used.
+  TrajectoryErrorEstimator(const std::list<OrbitalReading>& observations,
+                           const std::vector<double>& weights);
 
   /// Evaluate the error for the given set of decision variables.
   result_type operator()(const domain_type& x) const;
@@ -46,8 +54,11 @@ private:
       double& to_tweak, double epsilon,
       double& GM, vw::Vector3& p0, vw::Vector3& v0,
       const std::vector<OrbitalReading::timestamp_t>& t, double old_error);
-  
+
+    // Just sits there empty unless no weights are passed in the constructor.
+  std::vector<double> _default_weights;
   const std::list<OrbitalReading>& _observations;
+  const std::vector<double>& _weights;
   TrajectoryGradientSet _gradient;
 };
 
