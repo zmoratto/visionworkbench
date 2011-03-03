@@ -1,6 +1,5 @@
 #include <iostream>
-#include "WeightCalculator.hpp"
-
+#include <vw/orbital_refinement/WeightCalculator.hpp>
 
 
 double WeightCalculator::standardDeviationOneDvector(
@@ -22,8 +21,8 @@ double WeightCalculator::standardDeviationOneDvector(
 }
 
 
-void WeightCalculator::timeVarianceCalcuator(
-                        const std::list<OrbitalReading>& observations,
+void WeightCalculator::timeVarianceCalculator(
+                        const std::list<OrbitalReading>& readings,
                         std::vector<double>& timeWeights)
 {
     std::vector<double> tDelta;
@@ -32,23 +31,23 @@ void WeightCalculator::timeVarianceCalcuator(
     double tMean;
     double tSigma;
 
-    for (std::list<OrbitalReading>::iterator it = readings.begin();
-         it != readings.end(); it++, i++)
+    std::list<OrbitalReading>::const_iterator it_prev = readings.begin();
+    std::list<OrbitalReading>::const_iterator it_next = it_prev;
+    ++it_next;
+    
+    for ( ; it_next != readings.end(); ++it_prev, ++it_next)
     {
-       if(it != readings.end())
-       {
-         tDelta.push_back((it+1)->mTime - it->mTime);
-       }
+      tDelta.push_back(it_next->mTime - it_prev->mTime);
     }
 
     for(i = 0; i < tDelta.size(); i++)
-     {
-        tSum += tDelta[i]; 
-     }
+    {
+      tSum += tDelta[i]; 
+    }
+    
+    tMean = tSum / tDelta.size();
 
-     tMean = tSum / tDelta.size();
-
-     tSigma = standardDeviationOneDvector(&tDelta, tMean);
+     tSigma = standardDeviationOneDvector(tDelta, tMean);
    
       //tWeight = NormPDF(tDelta, tMean, tSigma) from boost lib
 
@@ -62,8 +61,7 @@ void WeightCalculator::timeVarianceCalcuator(
 
 void WeightCalculator::calculateWeights(const std::list<OrbitalReading>& observations,
                            const std::vector<vw::Vector3>& estimated_locations,
-                            std::vector<bool>& weights)
-
+                            std::vector<double>& weights)
 {
    
    return;
