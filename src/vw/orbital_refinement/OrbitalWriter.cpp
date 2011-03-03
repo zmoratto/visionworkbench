@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <ctime>
 #include <sstream>
 
@@ -27,17 +28,15 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
     for (std::list<OrbitalReading>::iterator it = readings.begin();
          it != readings.end(); ++it, ++i)
     {
+
       output_stream << it->mId << ", "
                     << timeToString(it->mTime) << ", "
+                    << std::setiosflags(std::ios::fixed) << std::setprecision(5)
                     << it->mCoord[0] << ", "
+                    << std::setiosflags(std::ios::fixed) << std::setprecision(6)
                     << it->mCoord[1] << ", "
                     << it->mCoord[2] << "\n";
 
-      /*std::cout << it->mId << ", "
-                    << timeToString(it->mTime) << ", "
-                    << it->mCoord[0] << ", "
-                    << it->mCoord[1] << ", "
-                    << it->mCoord[2] << "\n";*/
     }
 
     // Close the output stream
@@ -53,15 +52,12 @@ std::string timeToString(OrbitalReading::timestamp_t time) {
     // this is the time we will actually modify to get the string
     time_t temp = (time_t)time;
 
-    // Set the prefix
-    //str += "APOLLO17/METRIC/";
-
     // Get the milliseconds, then convert to seconds
     int milliseconds = temp%1000;
     time_t tempTime = temp/1000;
 
     // Convert to a struct tm in UTC
-    struct tm* t = gmtime(&tempTime);
+    struct tm* t = localtime(&tempTime);
 
     int year = t->tm_year + 1900;
     int month = t->tm_mon + 1;
