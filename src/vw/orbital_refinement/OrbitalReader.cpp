@@ -94,6 +94,9 @@ OrbitalReading::timestamp_t stringToTime(std::string time_string)
   read_pos += 3;
   int milliseconds = atoi(read_pos);
 
+  // Use the C-runtime library to determine DST by setting the value to less than 0
+  t.tm_isdst = -1;
+
   // Convert t to a time_t
   time_t seconds = mktime(&t);
   // Multiply by 1000 to convert it to milliseconds
