@@ -32,6 +32,12 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
                     << it->mCoord[0] << ", "
                     << it->mCoord[1] << ", "
                     << it->mCoord[2] << "\n";
+
+      /*std::cout << it->mId << ", "
+                    << timeToString(it->mTime) << ", "
+                    << it->mCoord[0] << ", "
+                    << it->mCoord[1] << ", "
+                    << it->mCoord[2] << "\n";*/
     }
 
     // Close the output stream
@@ -41,7 +47,8 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
 }
 
 std::string timeToString(OrbitalReading::timestamp_t time) {
-    char * buffer;
+
+    char * buffer = 0;
 
     // this is the time we will actually modify to get the string
     time_t temp = (time_t)time;
@@ -54,7 +61,7 @@ std::string timeToString(OrbitalReading::timestamp_t time) {
     temp = temp/1000;
 
     // Convert to a struct tm in UTC
-    struct tm* t = gmtime((const time_t*)temp);
+    struct tm* t = gmtime(&temp);
 
     int year = t->tm_year + 1900;
     int month = t->tm_mon;
@@ -62,7 +69,6 @@ std::string timeToString(OrbitalReading::timestamp_t time) {
     int hour = t->tm_hour;
     int min = t->tm_min;
     int secs = t->tm_sec;
-
 
     sprintf(buffer, "APOLLO17/METRIC/%u-%u-%uT%u:%u:%u.%u",
             year, month, day, hour, min, secs, milliseconds);
