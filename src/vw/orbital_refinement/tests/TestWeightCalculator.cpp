@@ -16,27 +16,8 @@ TEST( WeightCalculator, SanityCheck ) {
 
 TEST( WeightCalculator, NoOutliers ) {
 
-  OrbitalReading r1("", 0, 0, 0, 0);
-  OrbitalReading r2("", 20000, 1000, 0, 0);
-  OrbitalReading r3("", 40000, 2000, 0, 0);
-  OrbitalReading r4("", 60000, 3000, 0, 0);
-  OrbitalReading r5("", 80000, 4000, 0, 0);
-  OrbitalReading r6("", 100000, 5000, 0, 0);
-  OrbitalReading r7("", 120000, 6000, 0, 0);
-  OrbitalReading r8("", 140000, 7000, 0, 0);
-  OrbitalReading r9("", 160000, 8000, 0, 0);
 
   std::list<OrbitalReadings> readings;
-  readings.push_back(r1);
-  readings.push_back(r2);
-  readings.push_back(r3);
-  readings.push_back(r4);
-  readings.push_back(r5);
-  readings.push_back(r6);
-  readings.push_back(r7);
-  readings.push_back(r8);
-  readings.push_back(r9);
-
   std::vector<vw::Vector3> estimated;
   std::vector<double> weights;
   estimated.resize(9);
@@ -44,8 +25,11 @@ TEST( WeightCalculator, NoOutliers ) {
 
   for(int k = 0; k < 9; k++) {
       vw::Vector3 temp(k*1000, 0, 0);
+      OrbitalReading r_temp("", k*20000, k*1000, 0, 0);
+
       estimated[k] = temp;
       weights[k] = 0.5;
+      readings.push_back(r_temp);
   }
 
   WeightCalculator calc;
