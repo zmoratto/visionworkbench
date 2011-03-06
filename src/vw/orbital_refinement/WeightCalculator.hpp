@@ -11,9 +11,16 @@ public:
 
   
 
-  void calculateWeights(const std::list<OrbitalReading>& observations,
+  void calculateWeights(std::list<OrbitalReading>& observations,
                         const std::vector<vw::Vector3>& estimated_locations,
                         std::vector<double>& weights);
+
+  double smart_weighted_mean(std::vector<double>& weights,
+                           std::vector<double> const & samples,
+                           float const sign_level,
+                           float const learn_rate,
+                           float const error_tol, 
+                           long const max_iter);
 
 private:
 
@@ -24,6 +31,8 @@ private:
     void timeVarianceCalculator(
                         const std::list<OrbitalReading>& observations,
                         std::vector<double>& timeWeights);
+                     
+   double norm(vw::Vector3& v);                     
 };
 
 

@@ -31,12 +31,12 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
 
       output_stream << it->mId << ", "
                     << timeToString(it->mTime) << ", "
-                    << std::setiosflags(std::ios::fixed) << std::setprecision(5)
+                    << std::setprecision(12)
                     << it->mCoord[0] << ", "
-                    << std::setiosflags(std::ios::fixed) << std::setprecision(6)
+                    << std::setprecision(12)
                     << it->mCoord[1] << ", "
+                    << std::setprecision(12)
                     << it->mCoord[2] << "\n";
-
     }
 
     // Close the output stream
@@ -45,19 +45,16 @@ bool OrbitalWriter::writeToCSV(const std::string output_filename,
     return true;
 }
 
-std::string timeToString(OrbitalReading::timestamp_t time) {
-
+std::string timeToString(OrbitalReading::timestamp_t time)
+{
     char buffer[256];
 
-    // this is the time we will actually modify to get the string
-    time_t temp = (time_t)time;
-
     // Get the milliseconds, then convert to seconds
-    int milliseconds = temp%1000;
-    time_t tempTime = temp/1000;
+    int milliseconds = time%1000;
+    time_t temp_time = time/1000;
 
     // Convert to a struct tm in UTC
-    struct tm* t = localtime(&tempTime);
+    struct tm* t = localtime(&temp_time);
 
     int year = t->tm_year + 1900;
     int month = t->tm_mon + 1;
