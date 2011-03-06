@@ -16,13 +16,13 @@ TEST( WeightCalculator, SanityCheck ) {
 
 TEST( WeightCalculator, NoOutliers ) {
 
-
   std::list<OrbitalReadings> readings;
   std::vector<vw::Vector3> estimated;
   std::vector<double> weights;
   estimated.resize(9);
   weights.resize(9);
 
+  // Setup the data, time increments of 20000ms, x increments of 1000
   for(int k = 0; k < 9; k++) {
       vw::Vector3 temp(k*1000, 0, 0);
       OrbitalReading r_temp("", k*20000, k*1000, 0, 0);
@@ -32,10 +32,12 @@ TEST( WeightCalculator, NoOutliers ) {
       readings.push_back(r_temp);
   }
 
+  // initialize and call weight calculation
   WeightCalculator calc;
 
   calc.calculateWeights(readings, estimated, weights);
 
+  // make sure all the weights are one
   for(int k = 0; k < 9; k++) {
       EXPECT_EQ(weights[k], 1);
   }
