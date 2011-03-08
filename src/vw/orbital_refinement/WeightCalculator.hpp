@@ -16,11 +16,11 @@ public:
                         std::vector<double>& weights);
 
   double smart_weighted_mean(std::vector<double>& weights,
-                           std::vector<double> const & samples,
-                           float const sign_level,
-                           float const learn_rate,
-                           float const error_tol, 
-                           long const max_iter);
+                             const std::vector<double>& samples,
+                             const double sign_level,
+                             const double learn_rate,
+                             const double error_tol, 
+                             const long max_iter);
 
 private:
 
