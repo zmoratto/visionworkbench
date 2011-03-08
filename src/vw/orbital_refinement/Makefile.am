@@ -25,7 +25,7 @@ libvwOrbitalRefine_la_SOURCES =   \
   OrbitalWriter.cpp               \
   TrajectoryCalculator.cpp        \
   TrajectoryErrorEstimator.cpp    \
-  WeightCalculator.cpp
+  WeightCalculator.cpp            
 
 libvwOrbitalRefine_la_LIBADD = @MODULE_ORBITALREFINE_LIBS@
 libvwOrbitalRefine_la_LDFLAGS = @VW_LDFLAGS@ $(LIBTOOL_LIB_FLAGS)
@@ -45,7 +45,7 @@ endif
 ########################################################################
 
 AM_CPPFLAGS = @VW_CPPFLAGS@
-AM_LDFLAGS = @VW_LDFLAGS@
+AM_LDFLAGS = @VW_LDFLAGS@ -lboost_system
 
 SUBDIRS = . tests
 
