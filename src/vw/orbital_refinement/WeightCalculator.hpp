@@ -32,7 +32,7 @@ private:
                         const std::list<OrbitalReading>& observations,
                         std::vector<double>& timeWeights);
                      
-   double norm(vw::Vector3& v);                     
+   vw::Vector3 Unit(vw::Vector3& v);                     
 };
 
 
