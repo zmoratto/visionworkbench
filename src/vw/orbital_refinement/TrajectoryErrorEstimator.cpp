@@ -152,8 +152,8 @@ double TrajectoryErrorEstimator::calculatePositionError(
   
   if (calculate_gradient)
     _gradient.t[index] = 2*_weights[index]*dot_prod(this_err,calculated_velocity);
-  
-  return _weights[index] * norm_2(this_err);
+
+  return _weights[index] * dot_prod(this_err, this_err);
 }
 
 // We just return what we've already calculated.  This behavior relies
