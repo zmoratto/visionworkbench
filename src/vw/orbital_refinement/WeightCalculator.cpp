@@ -96,15 +96,15 @@ vw::Vector3 WeightCalculator::Unit(vw::Vector3& v)
    Iterate with it as const. Couldnt get it to compile
    */
 void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
-                           const std::vector<vw::Vector3>& estimated_locations,
-                            std::vector<double>& weights)
+                                        const std::vector<vw::Vector3>& estimated_locations,
+                                        std::vector<double>& weights)
 {
  
    //Calculate time variance
    //Create a vector of the Error vectors (R)
    vw::Vector3 eTmp; //Temporary container
    std::vector<double> errors; //vector of the error values
-   std::vector<vw::Vector3> errorVector; //Vector of Error Vectors
+   vw::Vector3 errorVector; //Error Vector
    vw::Vector3 rUnit; //Radial component of the error. Temporary container
    unsigned int i;
    double x, y, z;
@@ -117,15 +117,13 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
      errorVector[0] = estimated_locations[i][0] - it->mCoord[0]; 
      errorVector[1] = estimated_locations[i][1] - it->mCoord[1]; 
      errorVector[2] = estimated_locations[i][2] - it->mCoord[2]; 
-   
-      rUnit = WeightCalculator::Unit(it->mCoord);
-
-      //Find just the R component of the error. with the dot product
-      x = rUnit[0] * it->mCoord[0];
-      y = rUnit[1] * it->mCoord[1];
-      z = rUnit[2] * it->mCoord[2];
-      
-      errors.push_back(x+y+z);
+     
+     rUnit = WeightCalculator::Unit(it->mCoord);
+     
+       //Find just the R component of the error. with the dot product
+     double r_error = dot_prod(rUnit, errorVector);
+     
+     errors.push_back(r_error);
    }
 
    //Update the weights with Gradient Decent
