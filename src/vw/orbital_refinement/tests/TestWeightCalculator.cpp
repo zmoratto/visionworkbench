@@ -10,20 +10,22 @@
 
 using namespace vw;
 
-TEST( WeightCalculator, SanityCheck ) {
+TEST( WeightCalculator, SanityCheck )
+{
   EXPECT_EQ(1, 1);
 }
 
-TEST( WeightCalculator, NoOutliers ) {
-
-  std::list<OrbitalReadings> readings;
+TEST( WeightCalculator, NoOutliers )
+{
+  std::list<OrbitalReading> readings;
   std::vector<vw::Vector3> estimated;
   std::vector<double> weights;
   estimated.resize(9);
   weights.resize(9);
 
   // Setup the data, time increments of 20000ms, x increments of 1000
-  for(int k = 0; k < 9; k++) {
+  for(int k = 0; k < 9; k++)
+  {
       vw::Vector3 temp(k*1000, 0, 0);
       OrbitalReading r_temp("", k*20000, k*1000, 0, 0);
 
@@ -38,8 +40,8 @@ TEST( WeightCalculator, NoOutliers ) {
   calc.calculateWeights(readings, estimated, weights);
 
   // make sure all the weights are one
-  for(int k = 0; k < 9; k++) {
-      EXPECT_EQ(weights[k], 1);
+  for(int k = 0; k < 9; k++)
+  {
+    EXPECT_EQ(weights[k], 1);
   }
-
 }
