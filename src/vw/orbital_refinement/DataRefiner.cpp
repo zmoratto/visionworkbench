@@ -391,7 +391,17 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   // Next, normalize times so that it starts at t=0
   denormalizeReadingsByTime(readings, min_time);
   
-    // to do:  do whatever needs to be done to return the data to the caller.
+    // Place the adjusted times and coordinates into the passed in list of readings.
+    // They are already in estimated_locations and decision_vars.timestamps.
+    // We just need to transfer them into the readings list.
+  std::list<OrbitalReading>::iterator reading_it = readings.begin();
+  for (int i = 0;
+       reading_it != readings.end();
+       ++reading_it, ++i)
+  {
+    reading_it->mTime = decision_vars.timestamps[i];
+    reading_it->mCoord = estimated_locations[i];
+  }
   
   return true;
 }
