@@ -16,6 +16,8 @@ public:
                         std::vector<double>& weights);
 
   double smart_weighted_mean(std::vector<double>& weights,
+                             const std::vector<double>& timeWeights,
+                             double tAvg,
                              const std::vector<double>& samples,
                              const double sign_level,
                              const double learn_rate,
@@ -28,7 +30,7 @@ private:
                            std::vector<double>& v,
                            double mean);
 
-    void timeVarianceCalculator(
+    double timeVarianceCalculator(
                         const std::list<OrbitalReading>& observations,
                         std::vector<double>& timeWeights);
                      

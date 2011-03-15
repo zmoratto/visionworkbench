@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vw/orbital_refinement/WeightCalculator.hpp>
-#include <boost/random/normal_distribution.hpp>
+//#include <boost/random/normal_distribution.hpp>
+#include <boost/math/distributions/normal.hpp>
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
 #include <vw/Core/FundamentalTypes.h>
 
@@ -34,15 +35,18 @@ double WeightCalculator::standardDeviationOneDvector(
  * 
  * std::vector<double>& timeWeights&
  * -a pointer for the weights of each time stamp
+ *
+ * Returns the average of the time variance
+
 */
-void WeightCalculator::timeVarianceCalculator(
+double WeightCalculator::timeVarianceCalculator(
                         const std::list<OrbitalReading>& readings,
                         std::vector<double>& timeWeights)
 {
     std::vector<double> tDelta;
     unsigned int i = 0;
     double tSum = 0;
-    double tMean;
+    double tMean = 0;
     double tSigma;
 
     std::list<OrbitalReading>::const_iterator it_prev = readings.begin();
@@ -60,13 +64,20 @@ void WeightCalculator::timeVarianceCalculator(
     }
     
     tMean = tSum / tDelta.size();
+    tSum = 0;
 
     tSigma = standardDeviationOneDvector(tDelta, tMean);
   
     //TODO Finish this calculation, what does this mean?
-    boost::normal_distribution<double> nd(tMean, tSigma);
+    boost::math::normal_distribution<double> nd(tMean, tSigma);
+    for(i = 0; i<timeWeights.size();i++)
+    {
+      timeWeights[i] = boost::math::pdf(nd, tDelta[i]);
+      tSum += timeWeights[i];
+    }
 
-    return;
+    return tSum / timeWeights.size();
+
 }
 
 /* WeightCalculator::Unit(vw::Vector3& v)
@@ -107,8 +118,9 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
    vw::Vector3 errorVector; //Error Vector
    vw::Vector3 rUnit; //Radial component of the error. Temporary container
    unsigned int i;
-   double x, y, z;
+   double tAvg;
    double meanOfWeights = 0;
+   std::vector<double> timeWeights;
 
    i = 0;
    for (std::list<OrbitalReading>::iterator it = observations.begin();
@@ -116,7 +128,7 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
    {
      errorVector[0] = estimated_locations[i][0] - it->mCoord[0]; 
      errorVector[1] = estimated_locations[i][1] - it->mCoord[1]; 
-     errorVector[2] = estimated_locations[i][2] - it->mCoord[2]; 
+     errorVector[2] = estimated_locations[i][2] - it->mCoord[2];
      
      rUnit = WeightCalculator::Unit(it->mCoord);
      
@@ -126,8 +138,13 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
      errors.push_back(r_error);
    }
 
+   //Calculate the Time Variance
+   tAvg = WeightCalculator::timeVarianceCalculator(observations, timeWeights);
+
    //Update the weights with Gradient Decent
-   meanOfWeights = smart_weighted_mean(weights,
+   meanOfWeights = WeightCalculator::smart_weighted_mean(weights,
+                        timeWeights,
+                        tAvg,
                         errors,
                         0.5, //Test Value, get good ones later
                         0.5, //Test Value
@@ -155,12 +172,15 @@ using namespace vw;
 // RETURN: mean value
 double WeightCalculator::smart_weighted_mean(
     std::vector<double>& weights, // initial and final weights in [0,1] corresponding to samples
-    std::vector<double> const & samples,// sample data
+    const std::vector<double>& tWeights, // input weights of the time
+    double tAvg, //average of the time variance
+    const std::vector<double> & samples,// sample data
     const double sign_level, // significance level for statistical testing
     const double learn_rate, // learning rate of gradient decent method
-    double const error_tol, // error tolerance
-    long const max_iter// maximum number of iteration
+    const double error_tol, // error tolerance
+    const long max_iter// maximum number of iteration
     )
+
 {
   using namespace boost::math;
   
@@ -213,6 +233,8 @@ double WeightCalculator::smart_weighted_mean(
               fisher_f dist(v1,v2);
               p_value = 1-cdf(dist, FS);
             }
+
+            p_value = p_value * tWeights[j] / tAvg;
             
               // gradient decent update
             weights[j] += learn_rate*(p_value-sign_level);
