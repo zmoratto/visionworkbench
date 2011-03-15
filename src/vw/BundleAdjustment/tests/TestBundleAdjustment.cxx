@@ -282,6 +282,23 @@ TEST_F( NullTest, AdjustRobustSparseKGCP ) {
   }
 }
 
+TEST_F( NullTest, AdjustConjugateGradient ) {
+  TestBAModel model( cameras, cnet );
+  AdjustConjugateGradient< TestBAModel, L2Error > adjuster( model, L2Error(), false, false);
+
+  // Running BA
+  double abs_tol = 1e10, rel_tol = 1e10;
+  for ( uint32 i = 0; i < 5; i++ )
+    adjuster.update(abs_tol,rel_tol);
+
+  // Checking solutions
+  Vector<double,6> zero_vector;
+  for ( uint32 i = 0; i < 5; i++ ) {
+    Vector<double> solution = model.A_parameters(i);
+    EXPECT_VECTOR_NEAR( solution, zero_vector, 1e-1 );
+  }
+}
+
 // Comparison Tests
 // -----------------------
 TEST_F( ComparisonTest, Ref_VS_Sparse ) {
