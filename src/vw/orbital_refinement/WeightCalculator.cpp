@@ -68,14 +68,23 @@ double WeightCalculator::timeVarianceCalculator(
 
     tSigma = standardDeviationOneDvector(tDelta, tMean);
   
-    //TODO Finish this calculation, what does this mean?
-    boost::math::normal_distribution<double> nd(tMean, tSigma);
-    for(i = 0; i<timeWeights.size();i++)
+    if( tMean == 0 || tSigma == 0) //This is a perfect data set
     {
-      timeWeights[i] = boost::math::pdf(nd, tDelta[i]);
-      tSum += timeWeights[i];
+      for(i = 0; i < tDelta.size(); i++)
+       { timeWeights.push_back(1); }
+      tSum = timeWeights.size(); 
     }
-
+    else
+    {
+      //Calculate the normal probability distribution
+      boost::math::normal_distribution<double> nd(tMean, tSigma);
+      for(i = 0; i< tDelta.size(); i++)
+      {
+         //Get the probability of each time reading
+         timeWeights.push_back( boost::math::pdf(nd, tDelta[i]));
+         tSum += timeWeights[i];
+      }
+    }
     return tSum / timeWeights.size();
 
 }
