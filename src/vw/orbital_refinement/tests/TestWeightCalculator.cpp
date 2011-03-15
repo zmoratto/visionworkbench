@@ -26,7 +26,7 @@ TEST( WeightCalculator, NoOutliers )
   // Setup the data, time increments of 20000ms, x increments of 1000
   for(int k = 0; k < 9; k++)
   {
-      vw::Vector3 temp(k*1000+1, 0, 0);
+      vw::Vector3 temp(k*1000+k, 0, 0);
       OrbitalReading r_temp("", k*20000, k*1000, 0, 0);
 
       estimated[k] = temp;
