@@ -84,7 +84,8 @@ namespace math{
   };
 
 
-  class ArmijoStepSize {
+  class ArmijoStepSize
+  {
     double m_initial_stepsize, m_beta, m_sigma;
     static const int m_max_iterations = 1000;
   public:
@@ -95,11 +96,13 @@ namespace math{
                                             typename FuncT::domain_type const& pos,
                                             typename FuncT::result_type const& val,
                                             typename FuncT::gradient_type const& grad,
-                                            typename FuncT::gradient_type const& dir ) const {
+                                            typename FuncT::gradient_type const& dir ) const
+    {
       double stepsize = m_initial_stepsize;
       double thresh = m_sigma*m_initial_stepsize*dot_prod(grad,dir);
       int count = 0;
-      while( true ) {
+      while( true )
+      {
         typename FuncT::domain_type new_pos = pos + stepsize * dir;
         typename FuncT::result_type new_val = func(new_pos);
         if( new_val - val <= thresh || count > m_max_iterations ) return new_pos;
@@ -208,27 +211,52 @@ namespace math{
   typename FuncT::domain_type conjugate_gradient( FuncT const& func,
                                                   typename FuncT::domain_type const& seed,
                                                   StepT const& step,
-                                                  int numiters ) {
+                                                  int numiters )
+  {
+      // Stop when we improve by less than one part per million for three steps in a row.
+    static const typename FuncT::result_type relative_improvement_epsilon = 1e-6;
+    static const char max_term_count = 3;
+    char term_count = 0;
+    
     typename FuncT::domain_type pos = seed;
     typename FuncT::result_type val = func(pos);
+    typename FuncT::result_type new_val = val;
     vw_out(DebugMessage, "math") << "Initial: " << val << std::endl;
     double last_grad_norm2 = 0;
     typename FuncT::gradient_type last_dir;
-    for( int i=0; i<numiters; ++i ) {
-      typename FuncT::gradient_type grad = func.gradient(pos);
-      typename FuncT::gradient_type dir = -grad;
+    typename FuncT::gradient_type grad;
+    typename FuncT::gradient_type dir;
+    for( int i=0; i<numiters; ++i )
+    {
+      grad = func.gradient(pos);
+      dir = -grad;
       double grad_norm2 = dot_prod(grad,grad);
       if( i % VW_CONJGRAD_MAX_ITERS_BETWEEN_SPACER_STEPS != 0 && func.dimension() != 0 )
         dir += (grad_norm2/last_grad_norm2)*last_dir;
       pos = step( func, pos, val, grad, dir );
       last_grad_norm2 = grad_norm2;
       last_dir = dir;
-      val = func(pos);
+      new_val = func(pos);
+      
+        // calculate improvement
+      typename FuncT::result_type delta = val - new_val;
+      val = new_val;
+      
+        // See if there was little enough improvement to consider stopping
+      if (delta < relative_improvement_epsilon * val)
+        term_count++;
+      else
+        term_count = 0;
+      
+        // If we've had enough iterations with little enough improvement, quit
+      if (term_count >= max_term_count)
+        break;
+      
       vw_out(DebugMessage, "math") << "Step " << i << ": " << val << std::endl;
     }
     return pos;
   }
-
+  
 } } // namespace vw::math
 
 #endif // #ifndef __VW_MATH_CONJUGATEGRADIENT_H__
