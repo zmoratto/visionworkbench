@@ -119,7 +119,7 @@ TrajectoryErrorEstimator::calculateError(
   if (calculate_gradient)
   {
     // Gradient for GM
-    _gradient.GM=centralDifferenceGradient(GM, .00001, GM, p0, v0, t, error_squared);
+    _gradient.GM=centralDifferenceGradient(GM, .00001, GM, p0, v0, t, error_squared) / 1e18;
     
       // Gradient for each element of p0 and v0
     for (int i = 0; i < 3; ++i)

@@ -84,7 +84,7 @@ inline TrajectoryDecisionVariableSet operator+(const TrajectoryDecisionVariableS
                                         const TrajectoryGradientSet& rhs)
 {
   TrajectoryDecisionVariableSet result;
-  result.GM = lhs.GM + rhs.GM;
+  result.GM = lhs.GM + rhs.GM*1e-18;
   result.p0 = lhs.p0 + rhs.p0;
   result.v0 = lhs.v0 + rhs.v0;
   result.timestamps.resize(rhs.t.size());
