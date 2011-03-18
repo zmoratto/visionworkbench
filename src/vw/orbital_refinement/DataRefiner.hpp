@@ -18,7 +18,8 @@ class OrbitalRefiner
 public:
   //! Adjust a set of OrbitalReadings so that they adhere to a
   //! likely orbital path.
-  bool refineOrbitalReadings(std::list<OrbitalReading>& readings);
+  bool refineOrbitalReadings(std::list<OrbitalReading>& readings,
+          std::list<OrbitalReading>& refined);
 };
 
 

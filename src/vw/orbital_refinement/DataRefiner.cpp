@@ -324,7 +324,8 @@ namespace
   
 }
 
-bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
+bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
+        std::list<OrbitalReading>& refined)
 {
   // Remember the minTime that we're about to normalize on, we have to use
   // it later
@@ -365,20 +366,38 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
     // We start each iteration through the loop with a guess for our decision variables,
     // plus a set of weights for each point based on the previous guess.
   uint32 iteration_count = 0;
+  
+  const double IMPROVEMENT_THRESH = 1e-10;
+  const uint32 IMPROVEMENT_THRESH_TOL = 5;
+  double prev_error = 0;
+  uint32 thresh_ctr = 0;
   while (true)
   {
     const uint32 MAX_CG_ITERATIONS = 500;
-    const uint32 MAX_OUTER_ITERATIONS = 300;
+    const uint32 MAX_OUTER_ITERATIONS = 1000;
 
+    prev_error = error_func(decision_vars);
       // Minimize the weighted error
     decision_vars = conjugate_gradient(error_func, decision_vars,
                                        ArmijoStepSize(), MAX_CG_ITERATIONS);
 
+    double this_error = error_func(decision_vars);
+    double delta = prev_error - this_error;
+    //std::cout << "Iteration: " << iteration_count << " Delta: " << delta << std::endl;
+    if (delta < IMPROVEMENT_THRESH) {
+        thresh_ctr++;
+        //std::cout << "Increment thresh ctr to: " << thresh_ctr << std::endl;
+    } else {
+        thresh_ctr = 0;
+    }
       // See if we're done
       //
       // current stopping criterion is simple iteration count
-    if (++iteration_count >= MAX_OUTER_ITERATIONS)
+    if (thresh_ctr >= IMPROVEMENT_THRESH_TOL || 
+        iteration_count++ >= MAX_OUTER_ITERATIONS) {
+      //std::cout << "------Ending outer loop with " << iteration_count << " iterations------" << std::endl;
       break;
+    }
 
       // If we're not done, calculate another set of weights, using the latest
       // location estimates.
@@ -401,6 +420,13 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings)
   {
     reading_it->mTime = decision_vars.timestamps[i];
     reading_it->mCoord = estimated_locations[i];
+  }
+
+  // Copy the values to the list that is holding the updated values
+  for (std::list<OrbitalReading>::iterator it = readings.begin();
+         it != readings.end(); it++)
+  {
+      refined.push_back(*it);
   }
   
   return true;
