@@ -383,7 +383,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
 
     double this_error = error_func(decision_vars);
     double delta = prev_error - this_error;
-    //std::cout << "Iteration: " << iteration_count << " Delta: " << delta << std::endl;
+    std::cout << "Iteration: " << iteration_count << " Delta: " << delta << std::endl;
     if (delta < IMPROVEMENT_THRESH) {
         thresh_ctr++;
         //std::cout << "Increment thresh ctr to: " << thresh_ctr << std::endl;
@@ -406,9 +406,6 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
                                  decision_vars.timestamps, estimated_locations);
     weight_calc.calculateWeights(readings, estimated_locations, weights);
   }
-
-  // Next, normalize times so that it starts at t=0
-  denormalizeReadingsByTime(readings, min_time);
   
     // Place the adjusted times and coordinates into the passed in list of readings.
     // They are already in estimated_locations and decision_vars.timestamps.
@@ -421,6 +418,9 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
     reading_it->mTime = decision_vars.timestamps[i];
     reading_it->mCoord = estimated_locations[i];
   }
+
+  // Next, normalize times so that it starts at t=0
+  denormalizeReadingsByTime(readings, min_time);
 
   // Copy the values to the list that is holding the updated values
   for (std::list<OrbitalReading>::iterator it = readings.begin();
