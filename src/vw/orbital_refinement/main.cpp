@@ -78,7 +78,8 @@ void rebuildOrbits(std::list<OrbitalReading>& orbit,
 /*
  * 
  */
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     std::string INPUT_FILE = "apollo_17_orbit_positions.csv";
     std::string OUTPUT_FILE = "apollo_17_orbit_positions_refined.csv";
 
@@ -87,7 +88,7 @@ int main(int argc, char** argv) {
 
     time ( &rawtime );
     timeinfo = localtime ( &rawtime );
-    printf ( "The start date/time is: %s", asctime (timeinfo) );
+    std::cout << "The start date/time is: " << asctime(timeinfo) << std::endl;
 
     // Create a place to store the readings.
     std::list<OrbitalReading> readings;
@@ -131,7 +132,7 @@ int main(int argc, char** argv) {
 
     time ( &rawtime2 );
     timeinfo = localtime ( &rawtime2 );
-    printf ( "The end date/time is: %s", asctime (timeinfo) );
+    std::cout << "The end date/time is: " << asctime(timeinfo) << std::endl;
 
     return 0;
 }
