@@ -1,6 +1,6 @@
 /* 
  * File:   main.cpp
- * Author: hfung
+ * Author: Henry Fung (CMUSV)
  *
  * Created on January 25, 2011, 1:18 AM
  */

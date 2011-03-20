@@ -383,7 +383,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
 
     double this_error = error_func(decision_vars);
     double delta = prev_error - this_error;
-    std::cout << "Iteration: " << iteration_count << " Delta: " << delta << std::endl;
+    //std::cout << "Iteration: " << iteration_count << " Delta: " << delta << std::endl;
     if (delta < IMPROVEMENT_THRESH) {
         thresh_ctr++;
         //std::cout << "Increment thresh ctr to: " << thresh_ctr << std::endl;
