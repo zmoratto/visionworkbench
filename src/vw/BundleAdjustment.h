@@ -22,6 +22,7 @@
 #include <vw/BundleAdjustment/AdjustRobustRef.h>
 #include <vw/BundleAdjustment/AdjustRobustSparse.h>
 #include <vw/BundleAdjustment/AdjustRobustSparseKGCP.h>
+#include <vw/BundleAdjustment/AdjustConjugateGradient.h>
 
 // Reporter
 #include <vw/BundleAdjustment/BundleAdjustReport.h>

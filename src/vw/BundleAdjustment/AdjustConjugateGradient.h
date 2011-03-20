@@ -13,103 +13,221 @@
 #define __VW_BUNDLEADJUSTMENT_ADJUST_CONJUGATE_GRADIENT_H__
 
 #include <vw/BundleAdjustment/AdjustBase.h>
-#include <vw/Math/LinearAlgebra.h>
-
-// Boost
-#include <boost/numeric/ublas/matrix_sparse.hpp>
-#include <boost/numeric/ublas/vector_sparse.hpp>
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/version.hpp>
-
-// The sparse vectors/matrices are needed
-// for the covariance calculation
-
-#if BOOST_VERSION<=103200
-// Mapped matrix doesn't exist in 1.32, but Sparse Matrix does
-//
-// Unfortunately some other tests say this doesn't work
-#define boost_sparse_matrix boost::numeric::ublas::sparse_matrix
-#define boost_sparse_vector boost::numeric::ublas::sparse_vector
-#else
-// Sparse Matrix was renamed Mapped Matrix in later editions
-#define boost_sparse_matrix boost::numeric::ublas::mapped_matrix
-#define boost_sparse_vector boost::numeric::ublas::mapped_vector
-#endif
+#include <vw/BundleAdjustment/ControlNetwork.h>
+#include <vw/Math/ConjugateGradient.h>
 
 namespace vw {
 namespace ba {
 
-  template <class BundleAdjustModelT, class RobustCostT>
-  class AdjustConjugateGradient : public AdjustBase<BundleAdjustModelT,RobustCostT>, private boost::noncopyable {
-
-    // Need to save S for covariance calculations
-    math::Matrix<double> m_S;
-
+  template <class BundleAdjustModelT>
+  class BACGErrorCalculator
+  {
   public:
+    static const size_t PARAMS_PER_POINT = BundleAdjustModelT::point_params_n;
+    static const size_t PARAMS_PER_CAMERA = BundleAdjustModelT::camera_params_n;
+    const size_t DIMENSION;
+    
+    typedef double result_type;
+      // We store our decision variables as one big array of doubles.
+      // It's 6 doubles per camera followed by 3 doubles per ControlPoint.
+    typedef Vector<float64> domain_type;
+      // Gradient follows the same structure as the domain.
+    typedef Vector<float64> gradient_type;
 
-    AdjustConjugateGradient( BundleAdjustModelT & model,
-               RobustCostT const& robust_cost_func,
-               bool use_camera_constraint=true,
-               bool use_gcp_constraint=true ) :
-    AdjustBase<BundleAdjustModelT,RobustCostT>( model, robust_cost_func,
-                                                use_camera_constraint,
-                                                use_gcp_constraint ) {}
+    typedef Vector<float64, PARAMS_PER_POINT> point_vector_t;
+    typedef Vector<float64, PARAMS_PER_CAMERA> camera_vector_t;
+    
 
-    Matrix<double> S() { return m_S; }
-    void set_S(const math::Matrix<double>& S) {
-      m_S = S;
-    }
+    BACGErrorCalculator(BundleAdjustModelT& model) :
+      DIMENSION(model.num_cameras()*PARAMS_PER_CAMERA +
+                model.num_points() *PARAMS_PER_POINT),
+      m_model(model)
+    {}
 
-    // Covariance Calculator
-    // __________________________________________________
-    // This routine inverts a sparse matrix S, and prints the individual
-    // covariance matrices for each camera
-    void covCalc(){
-
-      // camera params
-      unsigned num_cam_params = BundleAdjustModelT::camera_params_n;
-      unsigned num_cameras = this->m_model.num_cameras();
-
-      unsigned inverse_size = num_cam_params * num_cameras;
-
-      typedef Matrix<double, BundleAdjustModelT::camera_params_n, BundleAdjustModelT::camera_params_n> matrix_camera_camera;
-
-      // final vector of camera covariance matrices
-      vw::Vector< matrix_camera_camera > sparse_cov(num_cameras);
-
-      // Get the S matrix from the model
-      Matrix<double> S = this->S();
-      Matrix<double> Id(inverse_size, inverse_size);
-      Id.set_identity();
-      Matrix<double> Cov = multi_solve_symmetric(S, Id);
-
-      //pick out covariances of individual cameras
-      for ( unsigned i = 0; i < num_cameras; i++ )
-         sparse_cov(i) = submatrix(Cov, i*num_cam_params,
-                                   i*num_cam_params,
-                                   num_cam_params,
-                                   num_cam_params);
-
-      std::cout << "Covariance matrices for cameras are:"
-                << sparse_cov << "\n\n";
-
-      return;
-    }
-
-    // UPDATE IMPLEMENTATION
-    //---------------------------------------------------------------
-    // This is a simple, non-sparse, unoptimized implementation of LM
-    // bundle adjustment.  It is primarily used for validation and
-    // debugging.
-    //
-    // Each entry in the outer vector corresponds to a distinct 3D
-    // point.  The inner vector contains a list of image IDs and
-    // pixel coordinates where that point was imaged.
-    double update(double &abs_tol, double &rel_tol) {
+    // Evaluate the error for the given set of decision variables.
+    result_type operator()(const domain_type& x) const
+    {
+      const size_t points_domain_offset =
+        BundleAdjustModelT::camera_params_n * m_model.num_cameras();
+      const size_t camera_domain_offset = 0;
       
+        // Iterate through the control network
+      boost::shared_ptr<ControlNetwork> net = m_model.control_network();
+      
+        // Loop through each point in the model
+      double error = 0;
+      int i = 0;
+      BOOST_FOREACH(const ControlPoint& cp, *net)
+      {
+          // Get the estimated location of this control point
+        point_vector_t b = subvector(
+          x,
+          points_domain_offset + i*PARAMS_PER_POINT,
+          PARAMS_PER_POINT);
+        
+          // Loop through each measure in the control point
+        BOOST_FOREACH(const ControlMeasure& cm, cp)
+        {
+            // cm.position() is the pixel location of cp in this image.
+            // It never changes.  We compare this actual pixel location
+            // against the expected pixel location of real-world coordinate b.
+          std::size_t this_camera_offset =
+            camera_domain_offset + cm.image_id()*PARAMS_PER_CAMERA;
+          camera_vector_t a = subvector(
+            x, this_camera_offset, PARAMS_PER_CAMERA);
+          
+          error += norm_2(cm.position() - m_model(i, cm.image_id(), a, b));
+        }
+        i++;
+      }
+      return error;
+    }
+
+      // Evaluate the gradient for the given set of decision variables.
+    gradient_type gradient(domain_type const& x) const
+    {
+        // hard-coded minimum delta
+      const double epsilon = .01;
+        
+        // Create a copy of x.
+      domain_type x_copy = x;
+
+        // Create a place to store the gradients
+      gradient_type gradient;
+      gradient.set_size(x_copy.size());
+      
+        // Loop through each element of x_copy,
+        // calculate a numeric gradient
+      for (std::size_t i = 0; i < x_copy.size(); ++i)
+      {
+        double save = x_copy[i];
+        double forward_x, reverse_x;
+        
+          // First do the forward difference
+        if (fabs(save) < 1.0)
+          forward_x = save + epsilon;
+        else
+          forward_x = save * 1.001;
+        x_copy[i] = forward_x;
+        double error = operator()(x_copy);
+        
+          // Now do reverse difference
+        if (fabs(save) < 1.0)
+          reverse_x = save - epsilon;
+        else
+          reverse_x = save * 0.999;
+        x_copy[i] = reverse_x;
+        error -= operator()(x_copy);
+
+          // Restore the original value
+        x_copy = save;
+
+          // Save the gradient for this element
+        gradient[i] = error/(forward_x - reverse_x);
+
+      }
+        // return the full result
+      return gradient;
+    }
+    
+
+      // the dimension of the gradient vector.
+    unsigned dimension() const
+    { return DIMENSION; }
+    
+    
+  private:
+
+      // Note that it's not const...not because we change it, but because
+      // control_network() is non-const (it probably should be).
+    BundleAdjustModelT& m_model;
+  };
+  
+  template <class BundleAdjustModelT, class RobustCostT>
+  class AdjustConjugateGradient :
+    public AdjustBase<BundleAdjustModelT,RobustCostT>,
+    private boost::noncopyable
+  {
+  public:
+    
+    AdjustConjugateGradient( BundleAdjustModelT& model,
+                             RobustCostT const& robust_cost_func,
+                             bool use_camera_constraint=true,
+                             bool use_gcp_constraint=true ) :
+      AdjustBase<BundleAdjustModelT,RobustCostT>( model, robust_cost_func,
+                                                  use_camera_constraint,
+                                                  use_gcp_constraint )
+    {}
+      
+    double update(double &abs_tol, double &rel_tol)
+    {
+      const int MAX_CG_ITERATIONS = 500;
+
+        // Create an error calculator
+      BACGErrorCalculator<BundleAdjustModelT> err_calc(this->m_model);
+
+        // Create an initial guess
+      Vector<float64> x;
+      initialize_domain_guess(x);
+
+        // Get the error before CG
+      double err_before = err_calc(x);
+
+        // Run CG
+      x = math::conjugate_gradient(err_calc, x, math::ArmijoStepSize(), MAX_CG_ITERATIONS);
+
+        // Store the results back in the model
+      store_domain_in_model(x);
+
+        // What do I return...the change in error?
+      return err_before - err_calc(x);
+    }
+
+  private:
+    void initialize_domain_guess(Vector<float64>& x)
+    {
+        // Make it the right size
+      x.set_size(this->m_model.num_cameras()*BundleAdjustModelT::camera_params_n +
+                 this->m_model.num_points() *BundleAdjustModelT::point_params_n);
+
+        // Populate it
+      std::size_t index = 0;
+      for (std::size_t i = 0; i < this->m_model.num_cameras(); ++i)
+      {
+         Vector<double,BundleAdjustModelT::camera_params_n> a =
+           this->m_model.A_parameters(i);
+         
+         for (std::size_t j = 0; j < BundleAdjustModelT::camera_params_n; j++)
+           x[index++] = a[j];
+      }
+      for (std::size_t i = 0; i < this->m_model.num_points(); ++i)
+      {
+         Vector<double,BundleAdjustModelT::point_params_n> b =
+           this->m_model.B_parameters(i);
+         
+         for (std::size_t j = 0; j < BundleAdjustModelT::point_params_n; j++)
+           x[index++] = b[j];
+      }
+    }
+
+    void store_domain_in_model(const Vector<float64>& x)
+    {
+      std::size_t index = 0;
+      for (std::size_t i = 0; i < this->m_model.num_cameras(); ++i)
+      {
+        this->m_model.set_A_parameters(
+          i, subvector(x, index, BundleAdjustModelT::camera_params_n));
+        index += BundleAdjustModelT::camera_params_n;
+      }
+      for (std::size_t i = 0; i < this->m_model.num_points(); ++i)
+      {
+        this->m_model.set_B_parameters(
+          i, subvector(x, index, BundleAdjustModelT::point_params_n));
+        index += BundleAdjustModelT::point_params_n;
+      }
     }
   };
-
+    
 }}
 
 #endif//__VW_BUNDLEADJUSTMENT_ADJUST_REF_H__
