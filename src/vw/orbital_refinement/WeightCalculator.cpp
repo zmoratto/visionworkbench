@@ -138,8 +138,14 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
      errorVector[0] = estimated_locations[i][0] - it->mCoord[0]; 
      errorVector[1] = estimated_locations[i][1] - it->mCoord[1]; 
      errorVector[2] = estimated_locations[i][2] - it->mCoord[2];
-     
-     rUnit = WeightCalculator::Unit(it->mCoord);
+    
+     vw::Vector3 reverse;
+     reverse[0] = it->mCoord[0];
+     reverse[1] = it->mCoord[1];
+     reverse[2] = it->mCoord[2];
+
+     //rUnit = WeightCalculator::Unit(it->mCoord);
+     rUnit = WeightCalculator::Unit(reverse);
      
        //Find just the R component of the error. with the dot product
      double r_error = dot_prod(rUnit, errorVector);
@@ -155,10 +161,10 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
                         timeWeights,
                         tAvg,
                         errors,
-                        0.5, //Test Value, get good ones later
-                        0.5, //Test Value
-                        0.01, //Test Value
-                        10);//Test Value
+                        0.2, //Sig Level
+                        0.3, //Learning Rate
+                        0.01, //Error Tolerance
+                        100);//Iterations
 
    //Factor in the time
    return;
@@ -243,24 +249,33 @@ double WeightCalculator::smart_weighted_mean(
               p_value = 1-cdf(dist, FS);
             }
 
-            p_value = p_value * tWeights[j] / tAvg;
+            //Integrate Time Variance
+            //p_value = p_value * tWeights[j] / tAvg;
+
+            //Interpolate
+            if(p_value < sign_level)
+            {
+               p_value = (-1) + (p_value / sign_level);
+            }
+            else 
+            {
+               p_value = ( p_value - sign_level) / (1 - sign_level);
+            }
             
               // gradient decent update
-            weights[j] += learn_rate*(p_value-sign_level);
+            weights[j] += learn_rate*(p_value);
               // 0.0 is lower bound of weight
             if ( weights[j] < 0 ) weights[j] = 0;
               // 1.0 is upper bound of weight
             if ( weights[j] > 1 ) weights[j] = 1;
             
               // squared sum of weight differences
-            sse_wt += (weights[j]-prev_wt[j])*(weights[j]-prev_wt[j]);
-              // update previous weight
-            prev_wt[j] = weights[j];
+          //  sse_wt += (weights[j]-prev_wt[j])*(weights[j]-prev_wt[j]);
           }
 	
             // terminal condition: mean squared difference of weights is smaller than the tolerance
-          if ( sse_wt/weights.size() < error_tol )
-            break;
+       //   if ( sse_wt/weights.size() < error_tol )
+       //     break;
         }
         
         return  weighted_mean;
