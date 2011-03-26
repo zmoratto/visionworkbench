@@ -10,7 +10,7 @@
 #include <vw/BundleAdjustment/BACGModel.h>
 
 #include <boost/foreach.hpp>
-
+#include <boost/filesystem.hpp>
 #include <cstdlib>
 
 using namespace std;
@@ -27,6 +27,17 @@ int main(int argc, char** argv) {
     // Staging
   typedef boost::shared_ptr<AdjustedCameraModel> AdjCamObj;
   std::vector<std::string> camera_names;
+
+  boost::filesystem::path my_path("/a15_rev033/");
+  directory_iterator end_itr; // default construction yields past-the-end
+  for ( directory_iterator itr( my_path );
+      itr != end_itr;
+      ++itr )
+      {
+         camera_names.push_back(itr->leaf());
+      }
+
+
   std::vector<boost::shared_ptr<PinholeModel> > cameras;
   BOOST_FOREACH( std::string const& in, camera_names ) {
     cameras.push_back( boost::shared_ptr<PinholeModel>( new PinholeModel(in) ) );
