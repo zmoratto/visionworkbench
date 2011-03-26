@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     // Staging
   typedef boost::shared_ptr<AdjustedCameraModel> AdjCamObj;
   std::vector<std::string> camera_names;
+  std::string fileName;
 
   boost::filesystem::path my_path("/a15_rev033/");
   directory_iterator end_itr; // default construction yields past-the-end
@@ -34,7 +35,9 @@ int main(int argc, char** argv) {
       itr != end_itr;
       ++itr )
       {
-         camera_names.push_back(itr->leaf());
+         fileName = itr->leaf().substr(itr->leaf().find_last_of(".") + 1);
+         if(fileName == "pinhole")
+            camera_names.push_back(itr->leaf());
       }
 
 
