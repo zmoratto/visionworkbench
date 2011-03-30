@@ -1,9 +1,19 @@
 #include <iostream>
 #include <vw/orbital_refinement/WeightCalculator.hpp>
-//#include <boost/random/normal_distribution.hpp>
 #include <boost/math/distributions/normal.hpp>
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
 #include <vw/Core/FundamentalTypes.h>
+
+#include <boost/program_options.hpp>
+
+#include <vw/FileIO.h>
+#include <vw/Image.h>
+#include <vw/Math.h>
+#include <vw/Cartography.h>
+#include <boost/math/distributions/fisher_f.hpp>
+
+namespace po = boost::program_options;
+using namespace vw;
 
 
 /*
@@ -161,8 +171,8 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
                         timeWeights,
                         tAvg,
                         errors,
-                        0.2, //Sig Level
-                        0.3, //Learning Rate
+                        0.01, //Sig Level
+                        0.01, //Learning Rate
                         0.01, //Error Tolerance
                         100);//Iterations
 
@@ -170,18 +180,6 @@ void WeightCalculator::calculateWeights(std::list<OrbitalReading>& observations,
    return;
 }
 
-
-
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
-
-#include <vw/FileIO.h>
-#include <vw/Image.h>
-#include <vw/Math.h>
-#include <vw/Cartography.h>
-using namespace vw;
-
-#include <boost/math/distributions/fisher_f.hpp>
 
 // OUTPUT: weights are updated 
 // RETURN: mean value
@@ -250,7 +248,7 @@ double WeightCalculator::smart_weighted_mean(
             }
 
             //Integrate Time Variance
-            //p_value = p_value * tWeights[j] / tAvg;
+            p_value = p_value * tWeights[j] / tAvg;
 
             //Interpolate
             if(p_value < sign_level)
@@ -270,7 +268,7 @@ double WeightCalculator::smart_weighted_mean(
             if ( weights[j] > 1 ) weights[j] = 1;
             
               // squared sum of weight differences
-          //  sse_wt += (weights[j]-prev_wt[j])*(weights[j]-prev_wt[j]);
+              //sse_wt += (weights[j]-prev_wt[j])*(weights[j]-prev_wt[j]);
           }
 	
             // terminal condition: mean squared difference of weights is smaller than the tolerance
