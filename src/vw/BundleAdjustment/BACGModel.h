@@ -37,6 +37,7 @@ public:
     BACGModel( std::vector< boost::shared_ptr<PinholeModel> > const& cameras,
                boost::shared_ptr<ControlNetwork> network,
                Vector<double, 3> or_data ) : m_cameras(cameras), m_cnet(network) {
+
         // Compute the number of observations from the bundle.
         m_num_pixel_observations = 0;
         for (size_t i = 0; i < network->size(); ++i)
