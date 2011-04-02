@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> camera_names;
   std::string fileName;
 
+  // Load the pinhole models
   boost::filesystem::path my_path("/a15_rev033/");
   directory_iterator end_itr; // default construction yields past-the-end
   for ( directory_iterator itr( my_path );
@@ -45,31 +46,26 @@ int main(int argc, char** argv) {
   BOOST_FOREACH( std::string const& in, camera_names ) {
     cameras.push_back( boost::shared_ptr<PinholeModel>( new PinholeModel(in) ) );
   }
-  
+
+  // Load the control network
   std::string cnet_filename = "a15_rev033/a15_rev033-single_orbit-20110317-1313.cnet";
   boost::shared_ptr<ControlNetwork> network( new ControlNetwork("a15_rev033") );
   network->read_binary( cnet_filename );
 
-  Vector a_delta = or_return - cameras[0].camera_center();
+  // Call Orbital Refinement
 
-  // New vector adjust camera model that use current As!
-  boost::shared_ptr<AdjustedCameraModel> pin(PinholeModel("AS15-M-1015.lev2.pinhole"));
-  AdjustedCameraModel q( pin, a_delta,
-                         Quat a_secondhalf(0,0,0,1) );
 
-  double error = 0;
-  BOOST_FOREACH( ControlPoint const& cp,
-                 cnet ) {
-    Vector3 b = cp.position();
+  Vector a_delta = cameras[0].camera_center();
 
-    BOOST_FOREACH( ControlMeasure const& cm, cp ) {
-      AdjCamObj q = cameras[cm.image_id()];
-      error += norm_2( cm.position() - q->point_to_pixel(b) );
-    }
-  }
-  std::cout << "Error: " << error << "\n";
+  // Create the BA model for CG
+  BACGModel model = new BACGModel(cameras, network, a_delta);
 
-    return 0;
+  // Create the adjuster...what to set with the boolean flags?
+  AdjustConjugateGradient adjuster = new AdjustConjugateGradient(model, L2Error(), true, true);
+
+  
+
+  return 0;
 }
 
 }
