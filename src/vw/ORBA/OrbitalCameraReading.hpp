@@ -14,16 +14,18 @@ using namespace vw::math;
 using namespace vw::camera;
 
 struct OrbitalCameraReading : public OrbitalReading {
+ boost::shared_ptr<PinholeModel> mCamera;
+ Quaternion mQuat;
+
  OrbitalCameraReading( std::string id, timestamp_t time,
                        boost::shared_ptr<PinholeModel> cam ) {
   mCoord = cam.camera_center(Vector2()); // We are assuming pinhole model
   mQuat = cam.camera_pose(Vector2());
   mId = id;
   mTime = time;
-
+  mCamera = cam;
  }
- boost::shared_ptr<CameraModel> mCamera;
- Quaternion mQuat;
+ 
 }
 
 
