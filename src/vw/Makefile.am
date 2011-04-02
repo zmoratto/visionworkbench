@@ -100,6 +100,10 @@ if MAKE_MODULE_ORBITALREFINE
 orbitalrefine_subdirs = orbital_refinement
 endif
 
+if MAKE_MODULE_ORBA
+orba_subdirs = ORBA
+endif
+
 include_HEADERS = \
   $(core_headers) \
   $(math_headers) \
@@ -138,6 +142,7 @@ SUBDIRS = \
   $(plate_subdirs) \
   $(bundleadjustment_subdirs) \
   $(orbitalrefine_subdirs) \
+  $(orba_subdirs) \
   $(gui_subdirs) \
   $(python_subdirs) \
   $(tools_subdirs)
