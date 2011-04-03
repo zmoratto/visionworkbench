@@ -6,46 +6,76 @@
  */
 
 #ifndef ORBA_DECISION_VARIABLE_SET_HPP
-#define	ORBA_DECISION_VARIABLE_SET_HPP
+#define ORBA_DECISION_VARIABLE_SET_HPP
 
 #include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
+#include <vector>
 
-using namespace vw::math;
-using namespace vw::camera;
-using namespace vw::ba;
+namespace vw {
+namespace ORBA {
 
-struct ORBADecisionVariableSet : public TrajectoryDecisionVariableSet {
- // The new parameters
- ControlNetwork& cnet; // We'll be modifying the Control Network in-place
- std::vector<Vector3> pj; // a.k.a the first half of Cj
- std::vector<Vector4> cj_second; // the second half of cj. These are quaternions but
-                                 // we are not using the object directly. Why? Because
-                                 // quaternions need to be normalized, and that's a hard
-                                 // constraint to enforce in this object when we are taking
-                                 // gradients. The normalization will happen when we
-                                 // construct the wrapper Cj around the camera models for
-                                 // evaluation of Ep (projection).
- // Instead of using std deviations / sigmas like Taemin's
- // equations, it is more efficient computer-wise to be solving
- // for the precision (aka inverse variance).
- Vector3 precision_p; // reprojection, seed with [1,1]
- Vector3 precision_r; // between p and s, seed with [1,1,1]
- Vector3 precision_s; // between q and s, seed with camera sigma
- double precision_t;  // seed with sigma t
+// Our decision variables are:
+//   * Trajectory variables, namely:
+//     * GM, p0, v0
+//     * One timestamp per reading.
+//   * For each ControlPoint (landmark):
+//     * landmark coordinates (3 doubles)
+//     Note that the landmark coordinates are stored right in
+//     the control network instead of having a separate vector.
+//   * For each camera, the following:
+//     * camera coordinates (3 doubles)
+//     * Orientation values (3 doubles)
+struct ORBADecisionVariableSet
+{
+    // Satellite trajectory decision variables
+  TrajectoryDecisionVariableSet trajectory_variables;
 
- ORBADecisionVariableSet( double GM_in, const& Vector3 p0_in,
-                          const& Vector3 v0_in, std::list<OrbitalCameraReading> const& obs,
-                          Vector3 const& sigma_p, Vector3 const& sigma r,
-                          Vector3 const& sigma_s, double sigma_t ) :
-   TrajectoryDecisionVariableSet( GM_in, p0_in, v0_in, obs ) {
-  // User passes in sigmas instead of precision as that is more intuitive for
-  // the user to understand
-  precision_p = 1/elem_prod(sigma_p,sigma_p);
-  precision_r = 1/elem_prod(sigma_r,sigma_r);
-  precision_s = 1/elem_prod(sigma_s,sigma_s);
-  precision_t = 1/( sigma_t * sigma_t );
- }
+    // ControlPoint variables (landmarks).
+    // We'll be modifying them in-place in the Control Network
+  ControlNetwork& cnet;
+  
+    // Camera coordinates; the first half of Cj.
+  std::vector<Vector3> pj;
+
+    // Camera orientation; the second half of cj.
+    // These are quaternions but
+    // we are not using the object directly. Why? Because
+    // quaternions need to be normalized, and that's a hard
+    // constraint to enforce in this object when we are taking
+    // gradients. The normalization will happen when we
+    // construct the wrapper Cj around the camera models for
+    // evaluation of Ep (projection).
+    //
+    // Why is this Vector4?  I know a quaternion is 4D, but the way
+    // BA does this is convert 3D to 4D for you.
+  std::vector<Vector4> cj_second;
+  
+    // Instead of using std deviations / sigmas like Taemin's
+    // equations, it is more efficient computer-wise to be solving
+    // for the precision (aka inverse variance).
+  Vector3 precision_p; // reprojection, seed with [1,1]
+  Vector3 precision_r; // between p and s, seed with [1,1,1]
+  Vector3 precision_s; // between q and s, seed with camera sigma
+  double precision_t;  // seed with sigma t
+  
+  ORBADecisionVariableSet( double GM_in, const& Vector3 p0_in,
+                           const Vector3& v0_in,
+                           std::list<OrbitalCameraReading> const& obs,
+                           Vector3 const& sigma_p, Vector3 const& sigma r,
+                           Vector3 const& sigma_s, double sigma_t ) :
+      trajectory_variables( GM_in, p0_in, v0_in, obs )
+  {
+      // User passes in sigmas instead of precision as that is
+      // more intuitive for the user to understand
+    precision_p = 1/elem_prod(sigma_p,sigma_p);
+    precision_r = 1/elem_prod(sigma_r,sigma_r);
+    precision_s = 1/elem_prod(sigma_s,sigma_s);
+    precision_t = 1/( sigma_t * sigma_t );
+  }
 };
+    
+}} // namespace vw::ORBA
+
 
 #endif	/* ORBA_DECISION_VARIABLE_SET_HPP */
 

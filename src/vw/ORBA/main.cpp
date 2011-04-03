@@ -6,55 +6,60 @@
  */
 
 #include <vw/ORBA/OrbitalCameraReading.hpp>
-#include <vw/orbital_refinement/OrbitalRefiner.hpp>
+#include <vw/ORBA/ORBARefiner.hpp>
+#include <vw/BundleAdjustment/ControlNetwork.h>
 
 #include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>
 
 #include <cstdlib>
 #include <fstream>
+#include <list>
 
 using namespace std;
 using namespace vw::camera;
+using namespace vw::ORBA;
 using namespace vw::ba;
 
 void write_results (std::string file, std::list<OrbitalCameraReading> data)
 {
     // Do something nice to convert to CSV
-    ofstream output( file );
-    for (std::list<OrbitalCameraReading>::iterator it = data.begin();
-      it != data.end();
-      it++)
-    {
-      output << it->mCoord << it->mQuat << "\n";
-    }
-
-    output.close();
+  ofstream output( file.c_str() );
+  for (std::list<OrbitalCameraReading>::iterator it = data.begin();
+       it != data.end();
+       it++)
+  {
+    output << it->mCoord << it->mQuat << "\n";
+  }
+  
+  output.close();
 }
 
 /*
  * 
  */
-int main(int argc, char** argv) {
- typedef boost::shared_ptr<AdjustedCameraModel> AdjCamObj;
+int main(int argc, char** argv)
+{
+  typedef boost::shared_ptr<AdjustedCameraModel> AdjCamObj;
   std::vector<std::string> camera_names;
-  std::string fileName;
+  std::string file_name;
 
-  // Load the pinhole models
+    // Load the pinhole models
   boost::filesystem::path my_path("/a15_rev033/");
-  directory_iterator end_itr; // default construction yields past-the-end
-  for ( directory_iterator itr( my_path );
-      itr != end_itr;
-      ++itr )
-      {
-         fileName = itr->leaf().substr(itr->leaf().find_last_of(".") + 1);
-         if(fileName == "pinhole")
-            camera_names.push_back(itr->leaf());
-      }
-
+    // default construction yields past-the-end
+  boost::filesystem::directory_iterator end_itr;
+  for ( boost::filesystem::directory_iterator itr( my_path );
+        itr != end_itr;
+        ++itr )
+  {
+    file_name = itr->leaf().substr(itr->leaf().find_last_of(".") + 1);
+    if(file_name == "pinhole")
+      camera_names.push_back(itr->leaf());
+  }
 
   std::vector<boost::shared_ptr<PinholeModel> > cameras;
-  BOOST_FOREACH( std::string const& in, camera_names ) {
+  BOOST_FOREACH( std::string const& in, camera_names )
+  {
     cameras.push_back( boost::shared_ptr<PinholeModel>( new PinholeModel(in) ) );
   }
 
@@ -63,9 +68,14 @@ int main(int argc, char** argv) {
   boost::shared_ptr<ControlNetwork> network( new ControlNetwork("a15_rev033") );
   network->read_binary( cnet_filename );
 
- // Perform first pass with that data that is completely OR
- OrbitalRefiner first_pass;
- //first_pass.refine( data, intermediate );
+#if 0
+    // This logic should be encapsulated in the ORBARefiner, not here in the
+    // main function
+  
+
+    // Perform first pass with that data that is completely OR
+  OrbitalRefiner first_pass;
+    //first_pass.refine( data, intermediate );
 
  // Perform second pass with OR-BA
  //OrbitalBARefiner second_pass;
@@ -76,9 +86,9 @@ int main(int argc, char** argv) {
  // Write out data into CSV
  write_results( file, data );*/
 
- return 0;
+#endif
 
+  return 0;
 }
-
 
 

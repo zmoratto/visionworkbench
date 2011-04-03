@@ -6,27 +6,33 @@
  */
 
 #ifndef ORBITAL_CAMERA_READING_H
-#define	ORBITAL_CAMERA_READING_H
+#define ORBITAL_CAMERA_READING_H
 
 #include <vw/orbital_refinement/OrbitalReading.hpp>
+#include <vw/Camera/PinholeModel.h>
 
-using namespace vw::math;
+namespace vw {
+namespace ORBA {
+
 using namespace vw::camera;
+    
+// A single reading/image.  It has a location,
+// a timestamp, and ID, a camera model, and an
+// orientation (pose).
+struct OrbitalCameraReading : public OrbitalReading
+{
+  boost::shared_ptr<PinholeModel> mCamera;
+  Quaternion<double> mQuat;
+  
+  OrbitalCameraReading( std::string id, timestamp_t time,
+                        boost::shared_ptr<PinholeModel> cam ) 
+          : OrbitalReading(id, time, cam->camera_center())
+  {
+    mQuat = cam->camera_pose();
+    mCamera = cam;
+  }
+};
 
-struct OrbitalCameraReading : public OrbitalReading {
- boost::shared_ptr<PinholeModel> mCamera;
- Quaternion mQuat;
-
- OrbitalCameraReading( std::string id, timestamp_t time,
-                       boost::shared_ptr<PinholeModel> cam ) {
-  mCoord = cam.camera_center(Vector2()); // We are assuming pinhole model
-  mQuat = cam.camera_pose(Vector2());
-  mId = id;
-  mTime = time;
-  mCamera = cam;
- }
- 
-}
-
+}}
 
 #endif	/* ORBITAL_CAMERA_READING_H */
