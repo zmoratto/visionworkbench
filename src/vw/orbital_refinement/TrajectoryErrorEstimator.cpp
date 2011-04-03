@@ -3,6 +3,8 @@
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 #include <cassert>
 
+// #include <iostream>
+
 using namespace vw;
 
 TrajectoryErrorEstimator::TrajectoryErrorEstimator(
@@ -34,30 +36,56 @@ TrajectoryErrorEstimator::operator()(const domain_type& x) const
       calculateError(x.GM, x.p0, x.v0, x.timestamps, true);
 }
 
-inline double TrajectoryErrorEstimator::centralDifferenceGradient(
+inline double TrajectoryErrorEstimator::forwardFiniteDifferenceGradient(
     double& to_tweak, double epsilon,
     double& GM, Vector3& p0, Vector3& v0,
-    const std::vector<OrbitalReading::timestamp_t>& t, double old_error)
+    const std::vector<OrbitalReading::timestamp_t>& t, double old_error) const
 {
   double save = to_tweak;
-  double forward_x, reverse_x;
-  
-    // First do the forward difference
+  double forward_x;
+
   if (fabs(save) < 1.0)
     forward_x = save + epsilon;
   else
-    forward_x = save * 1.001;
+    forward_x = save * (1+epsilon);
+  
   to_tweak = forward_x;
-  double error = calculateError(GM, p0, v0, t, false);
+  double error =
+      const_cast<TrajectoryErrorEstimator*>(this)->
+      calculateError(GM, p0, v0, t, false);
+  to_tweak = save;
+  
+  return (error - old_error)/(forward_x - save);
+}
+
+inline double TrajectoryErrorEstimator::centralFiniteDifferenceGradient(
+    double& to_tweak, double epsilon,
+    double& GM, Vector3& p0, Vector3& v0,
+    const std::vector<OrbitalReading::timestamp_t>& t) const
+{
+  double save = to_tweak;
+  double forward_x, reverse_x;
+
+  if (fabs(save) < 1.0)
+    forward_x = save + epsilon;
+  else
+    forward_x = save * (1+epsilon);
+  
+  to_tweak = forward_x;
+  double error =
+      const_cast<TrajectoryErrorEstimator*>(this)->
+      calculateError(GM, p0, v0, t, false);
 
     // Now do reverse difference
   if (fabs(save) < 1.0)
     reverse_x = save - epsilon;
   else
-    reverse_x = save * 0.999;
-  to_tweak = reverse_x;
-  error -= calculateError(GM, p0, v0, t, false);
+    reverse_x = save * (1-epsilon);
   
+  to_tweak = reverse_x;
+  error -=
+      const_cast<TrajectoryErrorEstimator*>(this)->
+      calculateError(GM, p0, v0, t, false);
   to_tweak = save;
   
   return error/(forward_x - reverse_x);
@@ -115,21 +143,7 @@ TrajectoryErrorEstimator::calculateError(
     prev_velocity = next_velocity;
   }
 
-  // Calculate the gradients for the non-time values, if requested
-  if (calculate_gradient)
-  {
-    // Gradient for GM
-    _gradient.GM=centralDifferenceGradient(GM, .00001, GM, p0, v0, t, error_squared) / 1e18;
-    
-      // Gradient for each element of p0 and v0
-    for (int i = 0; i < 3; ++i)
-    {
-      _gradient.p0[i] =
-          centralDifferenceGradient(p0[i], .001, GM, p0, v0, t, error_squared);
-      _gradient.v0[i] =
-          centralDifferenceGradient(v0[i], .001, GM, p0, v0, t, error_squared);
-    }
-  }
+  _cached_error = error_squared;
 
   return error_squared;
 }
@@ -156,12 +170,46 @@ double TrajectoryErrorEstimator::calculatePositionError(
   return _weights[index] * dot_prod(this_err, this_err);
 }
 
-// We just return what we've already calculated.  This behavior relies
+// We just return what we've already calculated for the time
+// gradients.  This behavior relies
 // on operator() having been called most recently with the same
-// x values requested here.
+// x values requested here.  The numeric gradients are calculated
+// now in order to ensure we calculate them only when needed.
 TrajectoryErrorEstimator::gradient_type
 TrajectoryErrorEstimator::gradient( domain_type const& x ) const
 {
+  // Calculate the gradients for the non-time values
+
+  // Make copies of mutable values
+  double GM = x.GM;
+  Vector3 p0 = x.p0;
+  Vector3 v0 = x.v0;
+  double error = _cached_error;
+
+  TrajectoryErrorEstimator* mutable_this =
+      const_cast<TrajectoryErrorEstimator*>(this);
+  
+  // Gradient for GM
+  mutable_this->_gradient.GM=
+      forwardFiniteDifferenceGradient(GM, 1e-7, GM, p0,
+                               v0, x.timestamps, error)
+      * TrajectoryGradientSet::GRAVITY_SCALING;
+    
+  // Gradient for each element of p0 and v0
+  for (int i = 0; i < 3; ++i)
+  {
+    mutable_this->_gradient.p0[i] =
+        forwardFiniteDifferenceGradient(p0[i], 1e-7, GM, p0, v0,
+                                 x.timestamps, error);
+    mutable_this->_gradient.v0[i] =
+        forwardFiniteDifferenceGradient(v0[i], 1e-7, GM,
+                                        p0, v0, x.timestamps, error)
+        * TrajectoryGradientSet::VELOCITY_SCALING;
+  }
+
+    // Restore the error to what it was originally.
+  mutable_this->_cached_error = error;
+
   return _gradient;
 }
 

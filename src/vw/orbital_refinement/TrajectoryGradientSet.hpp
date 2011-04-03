@@ -13,6 +13,11 @@ struct TrajectoryGradientSet
   vw::Vector3 v0;
   std::vector<double> t;
 
+  static const double GRAVITY_SCALING = 1;
+    //static const double GRAVITY_SCALING = 1e-5;
+  static const double VELOCITY_SCALING = 1e-6;
+    //static const double VELOCITY_SCALING = 1;
+
   TrajectoryGradientSet()
   {}
 
@@ -84,9 +89,10 @@ inline TrajectoryDecisionVariableSet operator+(const TrajectoryDecisionVariableS
                                         const TrajectoryGradientSet& rhs)
 {
   TrajectoryDecisionVariableSet result;
-  result.GM = lhs.GM + rhs.GM*1e-18;
+  result.GM = lhs.GM + rhs.GM*TrajectoryGradientSet::GRAVITY_SCALING;
+    //result.GM = lhs.GM + rhs.GM;
   result.p0 = lhs.p0 + rhs.p0;
-  result.v0 = lhs.v0 + rhs.v0;
+  result.v0 = lhs.v0 + rhs.v0*TrajectoryGradientSet::VELOCITY_SCALING;
   result.timestamps.resize(rhs.t.size());
   for (std::size_t i = 0; i < rhs.t.size(); ++i)
     result.timestamps[i] = lhs.timestamps[i]+rhs.t[i];
