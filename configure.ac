@@ -435,7 +435,7 @@ AX_MODULE(GEOMETRY,         [src/vw/Geometry],         [libvwGeometry.la],      
 AX_MODULE(PHOTOMETRY,       [src/vw/Photometry],       [libvwPhotometry.la],        no, [CARTOGRAPHY VW], [BOOST_FILESYSTEM BOOST_PROGRAM_OPTIONS])
 AX_MODULE(BUNDLEADJUSTMENT, [src/vw/BundleAdjustment], [libvwBundleAdjustment.la], yes, [CAMERA CARTOGRAPHY INTERESTPOINT STEREO VW])
 AX_MODULE(ORBITALREFINE,    [src/vw/orbital_refinement],[libvwOrbitalRefine.la],   yes, [CORE MATH])
-AX_MODULE(ORBA,             [src/vw/ORBA],             [libvwORBA.la],             yes, [CORE MATH ORBITALREFINE])
+AX_MODULE(ORBA,             [src/vw/ORBA],             [libvwORBA.la],             yes, [CORE MATH ORBITALREFINE CAMERA BUNDLEADJUSTMENT])
 AX_MODULE(PLATE,            [src/vw/Plate],            [libvwPlate.la],             no, [CARTOGRAPHY VW], [PROTOBUF BOOST_FILESYSTEM BOOST_REGEX BOOST_IOSTREAMS BOOST_PROGRAM_OPTIONS THREADS], [RABBITMQ_C ZEROMQ LIBKML])
 AS_IF([test x"$MAKE_MODULE_PLATE" = "xyes"],
   [AS_IF([test x"$HAVE_PKG_RABBITMQ_C" != "xyes"],
