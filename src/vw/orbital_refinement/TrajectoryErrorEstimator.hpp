@@ -50,15 +50,25 @@ private:
                                 const OrbitalReading& observation,
                                 bool calculate_gradient);
   
-  double centralDifferenceGradient(
+  double forwardFiniteDifferenceGradient(
       double& to_tweak, double epsilon,
       double& GM, vw::Vector3& p0, vw::Vector3& v0,
-      const std::vector<OrbitalReading::timestamp_t>& t, double old_error);
+      const std::vector<OrbitalReading::timestamp_t>& t, double old_error) const;
+
+  double centralFiniteDifferenceGradient(
+      double& to_tweak, double epsilon,
+      double& GM, vw::Vector3& p0, vw::Vector3& v0,
+      const std::vector<OrbitalReading::timestamp_t>& t) const;
 
     // Just sits there empty unless no weights are passed in the constructor.
   std::vector<double> _default_weights;
+    // The original coordinates against which errors are calculated.
   const std::list<OrbitalReading>& _observations;
+    // The relative weight of each point
   const std::vector<double>& _weights;
+    // The error of the most recently evaluated domain vector
+  double _cached_error;
+    // The error gradient for the most recently evaluated domain vector
   TrajectoryGradientSet _gradient;
 };
 

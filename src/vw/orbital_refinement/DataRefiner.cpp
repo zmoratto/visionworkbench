@@ -18,6 +18,7 @@
 // For output stream debug, remove these later
 #include <cstdlib>
 #include <iostream>
+#include <boost/foreach.hpp>
 
 using namespace vw;
 using namespace vw::math;
@@ -27,6 +28,30 @@ using namespace vw::math;
 // they use instance data, but during development this approach is often easier.
 namespace
 {
+  void printLocations(const TrajectoryCalculator& calc,
+                      const TrajectoryDecisionVariableSet& decision_vars)
+  {
+    std::vector<Vector3> estimated_locations(decision_vars.timestamps.size());
+    calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
+                            decision_vars.timestamps, estimated_locations);
+    BOOST_FOREACH(const Vector3& pos, estimated_locations)
+    {
+      std::cout << "create vertex "
+                << pos[0] << " "
+                << pos[1] << " "
+                << pos[2] << std::endl;
+    }
+  }
+
+  void printWeights(const std::vector<double>& weights)
+  {
+    BOOST_FOREACH(const double& weight, weights)
+    {
+      std::cout << weight << ", ";
+    }
+  }
+    
+    
   void normalizeReadingsByTime(std::list<OrbitalReading>& readings)
   {
     // Sort the readings by timestamp.
@@ -105,13 +130,9 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
     // Calculate an initial set of locations
   GravityAccelerationFunctor gravity(decision_vars.GM);
   TrajectoryCalculator traj_calc(gravity);
-  traj_calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
-                               decision_vars.timestamps, estimated_locations);
   
     // Calculate an initial set of weights
   WeightCalculator weight_calc;
-    // To do:  Not sure if we're supposed to do this before the first time through or not.
-//  weight_calc.calculateWeights(readings, estimated_locations, weights);
 
     // Create an error estimator
   TrajectoryErrorEstimator error_func(readings, weights);
@@ -145,7 +166,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
     }
       // See if we're done
     if (thresh_ctr >= IMPROVEMENT_THRESH_TOL || 
-        iteration_count++ >= MAX_OUTER_ITERATIONS)
+        ++iteration_count >= MAX_OUTER_ITERATIONS)
     {
       break;
     }
