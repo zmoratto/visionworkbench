@@ -9,10 +9,12 @@
 #define	ORBA_GRADIENT_SET_HPP
 
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
+#include <vw/Math/Vector.h>
 
 namespace vw {
 namespace ORBA {
 
+using namespace vw;
 using namespace vw::math;
 
 struct ORBAGradientSet
@@ -21,30 +23,31 @@ struct ORBAGradientSet
   TrajectoryGradientSet trajectory_gradients;
   
     // Instead of copying CNET, just have a:
-  std::vector<Vector3> x_k;
+    // consider how we want to structure this.
+  Vector<float64> x_k;
   
   ORBAGradientSet& operator=( const ORBAGradientSet& rhs )
   {
-      // I'm half sure this is correct
-    (TrajectoryGradientSet)(*this) = (TrajectoryGradientSet const&)rhs;
-      // Copy the new state parameters here
+    trajectory_gradients = rhs.trajectory_gradients;
+    x_k = rhs.x_k;
+    return *this;
   }
   
   ORBAGradientSet operator-()
   {
-      // Fresh implementation here as code reuse would cause an extra copy
+    ORBAGradientSet result;
+    result.trajectory_gradients = -trajectory_gradients;
+    result.x_k = -x_k;
+    return result;
   }
 };
 
-// I'm very confident that we can reuse math operations from
-// TrajectoryGradientSet. Here's an example of one:
 inline double dot_prod(const ORBAGradientSet& lhs,
                        const ORBAGradientSet& rhs )
 {
- double result = dot_prod( (const TrajectoryGradientSet&)lhs,
-                           (const TrajectoryGradientSet&)rhs );
- //result += // Rest of the new variables here.
- return result;
+  double result = dot_prod(lhs.trajectory_gradients, rhs.trajectory_gradients);
+  result += dot_prod(lhs.x_k, rhs.x_k);
+  return result;
 }
     
 }} // vw::ORBA
