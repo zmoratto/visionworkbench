@@ -26,6 +26,14 @@ public:
     mCoord(x,y,z)
   {}
 
+  // Constructor
+  OrbitalReading(std::string id, timestamp_t time,
+                 const vw::Vector3& coords) :
+    mId(id),
+    mTime(time),
+    mCoord(coords)
+  {}
+
   std::string mId;
   timestamp_t mTime;
   vw::Vector3 mCoord;
