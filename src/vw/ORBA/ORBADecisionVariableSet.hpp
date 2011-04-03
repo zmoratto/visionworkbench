@@ -9,10 +9,14 @@
 #define ORBA_DECISION_VARIABLE_SET_HPP
 
 #include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
+#include <vw/BundleAdjustment/ControlNetwork.h>
 #include <vector>
 
 namespace vw {
 namespace ORBA {
+
+using namespace vw;
+using namespace vw::ba;
 
 // Our decision variables are:
 //   * Trajectory variables, namely:
@@ -58,18 +62,21 @@ struct ORBADecisionVariableSet
   Vector3 precision_s; // between q and s, seed with camera sigma
   double precision_t;  // seed with sigma t
   
-  ORBADecisionVariableSet( double GM_in, const& Vector3 p0_in,
+  ORBADecisionVariableSet( double GM_in, const Vector3& p0_in,
                            const Vector3& v0_in,
-                           std::list<OrbitalCameraReading> const& obs,
-                           Vector3 const& sigma_p, Vector3 const& sigma r,
-                           Vector3 const& sigma_s, double sigma_t ) :
-      trajectory_variables( GM_in, p0_in, v0_in, obs )
+                           const std::list<OrbitalCameraReading>& obs,
+                           ControlNetwork& control_net,
+                           const Vector3& sigma_p,
+                           const Vector3& sigma_r,
+                           const Vector3& sigma_s, double sigma_t ) :
+      trajectory_variables( GM_in, p0_in, v0_in, obs ),
+      cnet(control_net)
   {
       // User passes in sigmas instead of precision as that is
       // more intuitive for the user to understand
-    precision_p = 1/elem_prod(sigma_p,sigma_p);
-    precision_r = 1/elem_prod(sigma_r,sigma_r);
-    precision_s = 1/elem_prod(sigma_s,sigma_s);
+    precision_p = elem_quot(1, elem_prod(sigma_p,sigma_p));
+    precision_r = elem_quot(1, elem_prod(sigma_r,sigma_r));
+    precision_s = elem_quot(1, elem_prod(sigma_s,sigma_s));
     precision_t = 1/( sigma_t * sigma_t );
   }
 };
