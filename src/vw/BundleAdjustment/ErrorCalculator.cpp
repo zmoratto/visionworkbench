@@ -55,6 +55,7 @@ Matrix3x3 ErrorCalculator::CalculateR(Vector3 pos, Vector3 vel)
 
 double ErrorCalculator::ProjectionError()
 {
+   
 }
 
 double ErrorCalculator::RegistrationError(std::vector<vw::Vector3>& BA, 
@@ -99,6 +100,7 @@ double ErrorCalculator::RegistrationError(std::vector<vw::Vector3>& BA,
 double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
                                        std::vector<Vector3>& OR,
                                        std::vector<Matrix3x3<& r,
+                                       std::vector<double> w,
                                        Vector3 precisionS)
 {
    int i;
@@ -119,7 +121,7 @@ double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
       t[1] = d[1] * precisionR[1];
       t[2] = d[2] * precisionR[2];
 
-      error += t[0] * d[0] + t[1] * d[1] + t[2] * d[2];
+      error += (t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) * w[i];
    }
 
    ip[0] = precisionS[1] * precisionS[2];
@@ -127,7 +129,7 @@ double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
    ip[2] = precisionS[0] * precisionS[1];
 
    //This is wrong, need to inverse the matrix first
-   error += BA->size() * std::log( (ip[1] * ip[2] +
+   error += BA->size() * w.sum() * std::log( (ip[1] * ip[2] +
                                     ip[0] * ip[2] +
                                     ip[0] * ip[1]);
    return error;                                 
