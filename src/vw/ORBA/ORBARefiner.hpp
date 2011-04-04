@@ -8,7 +8,11 @@
 #ifndef ORBA_REFINER_HPP
 #define	ORBA_REFINER_HPP
 
-#include <OrbitalCameraReading.hpp>
+#include <vw/ORBA/OrbitalCameraReading.hpp>
+#include <vw/BundleAdjustment/ControlNetwork.h>
+
+namespace vw {
+namespace ORBA {
 
 using namespace vw::ba;
 
@@ -20,6 +24,9 @@ public:
           std::list<OrbitalCameraReading>& readings,
           std::list<OrbitalCameraReading>& refined);
 };
+
+}} // namespace vw::ORBA
+
 
 #endif	/* ORBA_REFINER_HPP */
 

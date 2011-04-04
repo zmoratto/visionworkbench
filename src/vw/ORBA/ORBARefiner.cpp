@@ -10,18 +10,17 @@ using namespace vw::ba;
 namespace vw{
 namespace ORBA{
 
-    bool refineORBAReadings(ControlNetwork& cnet,
-            std::list<OrbitalCameraReading>& readings,
-            std::list<OrbitalCameraReading>& refined) {
+bool refineORBAReadings(ControlNetwork& cnet,
+                        std::list<OrbitalCameraReading>& readings,
+                        std::list<OrbitalCameraReading>& refined)
+{
+  OrbitalRefiner orRefiner = new OrbitalRefiner();
 
-        OrbitalRefiner orRefiner = new OrbitalRefiner();
+    // Sort by time
+  readings.sort(OrbitalReading::TimestampLess);
+  
+    // Remember the time we're normalizing on
+  OrbitalReading::timestamp_t min_time = readings.front().mTime;
+}
 
-        // Sort by time
-        readings.sort(OrbitalReading::TimestampLess);
-
-        // Remember the time we're normalizing on
-        OrbitalReading::timestamp_t min_time = readings.front().mTime;
-        
-    }
-
-}} // vw::ORBA
+}} // namespace vw::ORBA

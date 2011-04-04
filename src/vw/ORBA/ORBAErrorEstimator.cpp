@@ -1,8 +1,14 @@
+#include <vw/ORBA/ORBAErrorEstimator.hpp>
 
-#inlcude <stdio>
+#include <cmath>
+
 using namespace vw;
 
-Matrix3x3 ErrorCalculator::CalculateR(Vector3 pos, Vector3 vel)
+namespace vw {
+namespace ORBA {
+        
+
+Matrix3x3 ORBAErrorEstimator::CalculateR(Vector3 pos, Vector3 vel)
 {
    double posNorm, velNorm, crossNorm;
    Vector3 posUnit, velUnit, crossUnit;
@@ -53,21 +59,21 @@ Matrix3x3 ErrorCalculator::CalculateR(Vector3 pos, Vector3 vel)
    return r;
 }
 
-double ErrorCalculator::ProjectionError()
+double ORBAErrorEstimator::ProjectionError()
 {
-   
+    // To do.
+  return 0;
 }
 
-double ErrorCalculator::RegistrationError(std::vector<vw::Vector3>& BA, 
-                                          std::vector<vw::Vector3>& OR,
-                                          std::vector<vw::Matrix3x3>& r,
-                                          Vector3 precisionR)
+double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& BA, 
+                                             const std::vector<Vector3>& OR,
+                                             const std::vector<Matrix3x3>& r,
+                                             const Vector3& precisionR)
 {
-   int i;
    Vector3 d, t;
    double error = 0;
-   Vector3 iP;
-   for(i = 0; i < BA->size(); i++)
+   Vector3 ip;
+   for(std::size_t i = 0; i < BA.size(); i++)
    {
       t[0] = BA[i][0] - OR[i][0];
       t[1] = BA[i][1] - OR[i][1];
@@ -88,26 +94,26 @@ double ErrorCalculator::RegistrationError(std::vector<vw::Vector3>& BA,
    ip[1] = precisionR[0] * precisionR[2];
    ip[2] = precisionR[0] * precisionR[1];
 
-   //This is wrong, need to inverse the matrix first
-   error += BA->size() * std::log( (ip[1] * ip[2] +
-                                    ip[0] * ip[2] +
-                                    ip[0] * ip[1]);
+   //This is wrong, need to inverse the matrix first.
+   // Also check indices...
+   error += BA.size() * log( (ip[1] * ip[2] +
+                              ip[0] * ip[2] +
+                              ip[0] * ip[1]));
    return error;                                 
 }
 
 //AP is the original satellite positions
 //OR is the orbital refined positions
-double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
-                                       std::vector<Vector3>& OR,
-                                       std::vector<Matrix3x3<& r,
-                                       std::vector<double> w,
-                                       Vector3 precisionS)
+double ORBAErrorEstimator::SatelliteError(std::vector<Vector3>& AP,
+                                          std::vector<Vector3>& OR,
+                                          std::vector<Matrix3x3>& r,
+                                          Vector<double> w,
+                                          Vector3 precisionS)
 {
-   int i;
    Vector3 d, t;
    double error = 0;
-   Vector3 iP;
-   for(i = 0; i < BA->size(); i++)
+   Vector3 ip;
+   for(std::size_t i = 0; i < AP.size(); i++)
    {
       t[0] = AP[i][0] - OR[i][0];
       t[1] = AP[i][1] - OR[i][1];
@@ -117,9 +123,9 @@ double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
       d[1] = t[0] * r[i](1,0) + t[1] * r[i](1,1) + t[2] * r[i](1,2);
       d[2] = t[0] * r[i](2,0) + t[1] * r[i](2,1) + t[2] * r[i](2,2);
 
-      t[0] = d[0] * precisionR[0];
-      t[1] = d[1] * precisionR[1];
-      t[2] = d[2] * precisionR[2];
+      t[0] = d[0] * precisionS[0];
+      t[1] = d[1] * precisionS[1];
+      t[2] = d[2] * precisionS[2];
 
       error += (t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) * w[i];
    }
@@ -129,24 +135,23 @@ double ErrorCalculator::SatelliteError(std::vector<Vector3>& AP,
    ip[2] = precisionS[0] * precisionS[1];
 
    //This is wrong, need to inverse the matrix first
-   error += BA->size() * w.sum() * std::log( (ip[1] * ip[2] +
-                                    ip[0] * ip[2] +
-                                    ip[0] * ip[1]);
-   return error;                                 
+   error += AP.size() * sum(w) * log( (ip[1] * ip[2] +
+                                        ip[0] * ip[2] +
+                                        ip[0] * ip[1]));
+   return error;
 }
 
-double ErrorCalculator::TimingError(Vector<double> timeValues,
-                                    Vector<double> timeEstimates,
-                                    double timeVariance,
-                                    Vector<double> timeWeights)
+double ORBAErrorEstimator::TimingError(const Vector<double>& timeValues,
+                                       const Vector<double>& timeEstimates,
+                                       double timeVariance,
+                                       const Vector<double>& timeWeights)
 {
    double diff = 0;
    //Sum weights
    double weightSum = 0;
-   int i; //I tried boost for each, didnt get it working
-   for(i = 0; i < timeWeights.size(); i++)
+   for(std::size_t i = 0; i < timeWeights.size(); i++)
    {
-      weightSum += timeWeight[i];
+      weightSum += timeWeights[i];
    }
 
    //square variance
@@ -157,13 +162,13 @@ double ErrorCalculator::TimingError(Vector<double> timeValues,
 
    //sum of -
    // weight(j) * (Real time - estimate time)^2 / var^2
-   for(i = 0; i < timeValues.size(); i++)
+   for(std::size_t i = 0; i < timeValues.size(); i++)
    {
       diff +=( (timeValues[i] - timeEstimates[i])* (timeValues[i] - timeEstimates[i]) * timeWeights[i] ) / sigma2;
    }
 
    return error + diff;
-
 }
 
-
+   
+}}
