@@ -102,10 +102,9 @@ double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& p,
                                              const std::vector<Matrix3x3>& r,
                                              const Vector3& precisionR)
 {
-   Vector3 d, t;
+   Vector3 d, t; //d and t are temp vectors for math
    double error = 0;
-   Vector3 ip;
-   for(std::size_t i = 0; i < BA.size(); i++)
+   for(std::size_t i = 0; i < p.size(); i++)
    {
       t[0] = p[i][0] - s[i][0];
       t[1] = p[i][1] - s[i][1];
@@ -115,15 +114,15 @@ double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& p,
       d[1] = t[0] * r[i](1,0) + t[1] * r[i](1,1) + t[2] * r[i](1,2);
       d[2] = t[0] * r[i](2,0) + t[1] * r[i](2,1) + t[2] * r[i](2,2);
 
-      t[0] = d[0] * precisionR[0];
-      t[1] = d[1] * precisionR[1];
-      t[2] = d[2] * precisionR[2];
+      t[0] = d[0] * ( 1.0 / precisionR[0]);
+      t[1] = d[1] * ( 1.0 / precisionR[1]);
+      t[2] = d[2] * ( 1.0 / precisionR[2]);
 
       error += t[0] * d[0] + t[1] * d[1] + t[2] * d[2];
    }
 
    // Also check indices...
-   error -= BA.size() * log( precisionR[0] * precisionR[1] * precisionR[2]);
+   error -= p.size() * log( precisionR[0] * precisionR[1] * precisionR[2]);
    return error;                                 
 }
 
@@ -163,16 +162,16 @@ double ORBAErrorEstimator::SatelliteError(std::vector<Vector3>& q,
       d[2] = t[0] * r[i](2,0) + t[1] * r[i](2,1) + t[2] * r[i](2,2);
 
       //t is now transpose e * inverse variance
-      t[0] = d[0] * precisionS[0];
-      t[1] = d[1] * precisionS[1];
-      t[2] = d[2] * precisionS[2];
+      t[0] = d[0] * ( 1.0 / precisionS[0]);
+      t[1] = d[1] * ( 1.0 / precisionS[1]);
+      t[2] = d[2] * ( 1.0 / precisionS[2]);
 
       //adding the previous value with 
       error += (t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) * w[i];
    }
 
    //This is the log of the inverse precision
-   error -= AP.size() * sum(w) * log( precisionS[0] * precisionS[1] * precisionS[2] );
+   error -= q.size() * sum(w) * log( precisionS[0] * precisionS[1] * precisionS[2] );
    return error;
 }
 
