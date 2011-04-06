@@ -1,12 +1,29 @@
 #include <vw/ORBA/ORBAErrorEstimator.hpp>
+#include <vw/Camera/CameraModel.h>
 
+#include <boost/foreach.hpp>
 #include <cmath>
 
 using namespace vw;
 
 namespace vw {
 namespace ORBA {
-        
+
+ORBAErrorEstimator::result_type
+ORBAErrorEstimator::operator()(const ORBAErrorEstimator::domain_type& x) const
+{
+  double error = ProjectionError(x);
+  
+  return error;
+  
+//       ProjectionError(x)
+//       + RegistrationError(x.trajectory_variables.p0
+//                           x., x.precision_r)
+//       + SatelliteError(x.precision_s)
+//       + TimingError(x.precision_t);
+}
+
+
 /*  
  * CalculateR
  *
@@ -16,7 +33,7 @@ namespace ORBA {
  *
  * TODO Check my explanation of CalculateR
  */
-Matrix3x3 ORBAErrorEstimator::CalculateR(Vector3 pos, Vector3 vel)
+Matrix3x3 ORBAErrorEstimator::CalculateR(Vector3 pos, Vector3 vel) const
 {
    double posNorm, velNorm, crossNorm;
    Vector3 posUnit, velUnit, crossUnit;
@@ -76,10 +93,43 @@ Matrix3x3 ORBAErrorEstimator::CalculateR(Vector3 pos, Vector3 vel)
    return r;
 }
 
-double ORBAErrorEstimator::ProjectionError()
+double ORBAErrorEstimator::ProjectionError(
+    const ORBAErrorEstimator::domain_type& x) const
 {
-    // To do.
-  return 0;
+    // Loop through the control network
+  double error = 0;
+  BOOST_FOREACH(const ControlPoint& cp, x.cnet)
+  {
+      // Get the estimated location of this control point, as stored
+      // in the control network. This is a decision variable.
+    Vector3 b = cp.position();
+    
+      // Loop through each measure in the control point
+    BOOST_FOREACH(const ControlMeasure& cm, cp)
+    {
+        // To do:  We need an ORBAModel to store our observations.
+        // We need to get the camera from this model.
+      
+        // Get the camera parameters for this camera
+      Vector3 a_location = x.pj[cm.image_id()];
+      Vector4 a_rotation = x.cj_second[cm.image_id()];
+      
+        // cm.position() is the pixel location of cp in this image.
+        // It never changes.  We compare this actual pixel location
+        // against the expected pixel location of world-space coordinate b.
+
+        // Remove the next two lines, and uncomment the line that follows,
+        // once we get the observations in place.
+      boost::shared_ptr<CameraModel> cam;
+      AdjustedCameraModel adj_cam(cam);
+//       AdjustedCameraModel adj_cam(model.getCamera[cm.image_id()],
+//                                   a_location,
+//                                   math::Quaternion(a_rotation));
+      Vector2 delta = elem_diff(cm.position(), adj_cam.point_to_pixel(b));
+      error += sum(elem_prod(elem_prod(delta, delta),  x.precision_p));
+    }
+  }
+  return error;
 }
 
 
@@ -88,7 +138,7 @@ double ORBAErrorEstimator::ProjectionError()
  * 
  * In:
  * vector<Vector3>& p  : Original Apollo readings
- * vector<Vector3>& s  : Orbital Refinemed positions
+ * vector<Vector3>& s  : Orbital Refined positions
  * vector<Matrix3x3> r : Calculated Radial coordinates from Camera positions.
  *                       This should be calculated separately as part of an
  *                       initialization routine.
@@ -100,7 +150,7 @@ double ORBAErrorEstimator::ProjectionError()
 double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& p, 
                                              const std::vector<Vector3>& s,
                                              const std::vector<Matrix3x3>& r,
-                                             const Vector3& precisionR)
+                                             const Vector3& precisionR) const
 {
    Vector3 d, t; //d and t are temp vectors for math
    double error = 0;
@@ -131,7 +181,7 @@ double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& p,
  * 
  * In:
  * vector<Vector3>& q  : Original Apollo readings
- * vector<Vector3>& s  : Orbital Refinemed positions
+ * vector<Vector3>& s  : Orbital Refined positions
  * vector<Matrix3x3> r : Calculated Radial coordinates from Camera positions.
  *                       This should be calculated separately as part of an
  *                       initialization routine.
@@ -145,7 +195,7 @@ double ORBAErrorEstimator::SatelliteError(std::vector<Vector3>& q,
                                           std::vector<Vector3>& s,
                                           std::vector<Matrix3x3>& r,
                                           Vector<double> w,
-                                          Vector3 precisionS)
+                                          Vector3 precisionS) const
 {
    Vector3 d, t; //temp vectors for math. T is for temp. D is for . . .temp.
    double error = 0;
@@ -186,11 +236,13 @@ double ORBAErrorEstimator::SatelliteError(std::vector<Vector3>& q,
  *
  * TODO Check if the weight is for the point or just the time component
  * of the weight.
+ *
+ * TODO Deal with times using milliseconds instead of doubles.
  */
 double ORBAErrorEstimator::TimingError(const Vector<double>& timeValues,
                                        const Vector<double>& timeEstimates,
                                        double timeVariance,
-                                       const Vector<double>& timeWeights)
+                                       const Vector<double>& timeWeights) const
 {
    double diff = 0;
    //Sum weights
@@ -204,7 +256,7 @@ double ORBAErrorEstimator::TimingError(const Vector<double>& timeValues,
    double sigma2 = timeVariance * timeVariance;
 
    //weight sum * ln (varaince squared)
-   double error = weightSum * (std::log (sigma2));
+   double error = weightSum * (log (sigma2));
 
    //sum of -
    // weight(j) * (Real time - estimate time)^2 / var^2
