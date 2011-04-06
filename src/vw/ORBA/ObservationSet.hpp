@@ -53,7 +53,6 @@ public:
   {
     return mReadings[index];
   }
-        
   
 private:
 

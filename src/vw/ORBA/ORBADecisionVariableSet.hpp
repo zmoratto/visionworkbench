@@ -35,7 +35,7 @@ using namespace vw::ba;
 struct ORBADecisionVariableSet
 {
     // Satellite trajectory decision variables
-  TrajectoryDecisionVariableSet trajectory_variables;
+  TrajectoryDecisionVariableSet trajectory;
 
     // ControlPoint variables (landmarks).
     // The piece of the cnet that is considered part of the
@@ -72,7 +72,7 @@ struct ORBADecisionVariableSet
                            const Vector3& sigma_p,
                            const Vector3& sigma_r,
                            const Vector3& sigma_s, double sigma_t ) :
-      trajectory_variables( GM_in, p0_in, v0_in, obs ),
+      trajectory( GM_in, p0_in, v0_in, obs ),
       cnet(control_net)
   {
       // User passes in sigmas instead of precision as that is

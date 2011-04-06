@@ -3,6 +3,7 @@
 
 #include <vw/ORBA/ORBADecisionVariableSet.hpp>
 #include <vw/ORBA/ORBAGradientSet.hpp>
+#include <vw/ORBA/ObservationSet.hpp>
 
 #include <vw/Math/Vector.h>
 #include <vw/Math/Matrix.h>
@@ -16,6 +17,14 @@ using namespace vw;
 class ORBAErrorEstimator
 {
 public:
+
+    // Constructor.
+    // Takes the readings we'll be compared against as input.
+  ORBAErrorEstimator(boost::shared_ptr<ObservationSet> observations,
+                     const std::vector<double>& weights) 
+          : mObservations(observations),
+            mWeights(weights)
+  {}
 
 // This section is all required for use in CG
   typedef ORBADecisionVariableSet domain_type;
@@ -34,7 +43,10 @@ public:
 // End of what's required for CG
   
 private:
-  Matrix3x3 CalculateR(Vector3 pos, Vector3 vel) const;
+
+  double TrajectoryDependentErrors(const domain_type& x) const;
+
+  Matrix3x3 CalculateR(const Vector3& pos, const Vector3& vel) const;
   
   double ProjectionError(const domain_type& x) const;
   
@@ -44,17 +56,23 @@ private:
       const std::vector<Matrix3x3>& r,
       const Vector3& precisionR) const;
   
-  double SatelliteError(std::vector<Vector3>& AP,
-                        std::vector<Vector3>& OR,
-                        std::vector<Matrix3x3>& r,
-                        Vector<double> w,
-                        Vector3 precisionS) const;
+  double SatelliteError(const std::vector<Vector3>& AP,
+                        const std::vector<Vector3>& OR,
+                        const std::vector<Matrix3x3>& r,
+                        const std::vector<double>& w,
+                        const Vector3& precisionS) const;
 
-  double TimingError(const Vector<double>& timeValues,
-                     const Vector<double>& timeEstimates,
+  double TimingError(const std::vector<double>& timeValues,
+                     const std::vector<double>& timeEstimates,
                      double timeVariance,
-                     const Vector<double>& timeWeights) const;
+                     const std::vector<double>& timeWeights) const;
+
+  boost::shared_ptr<ObservationSet> mObservations;
   
+    // The relative weight of each point in OR.
+    // We hold a const reference to the weight vector,
+    // which is updated elsewhere.
+  const std::vector<double>& mWeights;
 };
 
 }} // namespace vw::ORBA
