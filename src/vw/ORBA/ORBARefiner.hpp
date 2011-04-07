@@ -9,6 +9,11 @@
 #define	ORBA_REFINER_HPP
 
 #include <OrbitalCameraReading.hpp>
+#include <vw/BundleAdjustment/ControlNetwork.h>
+#include <ObservationSet.hpp>
+
+namespace vw {
+namespace ORBA {
 
 using namespace vw::ba;
 
@@ -16,10 +21,12 @@ class ORBARefiner
 {
 public:
 
-  bool refineORBAReadings(ControlNetwork& cnet,
-          std::list<OrbitalCameraReading>& readings,
-          std::list<OrbitalCameraReading>& refined);
+  bool refineORBAReadings(ObservationSet obs, const Vector3& sigma_p,
+          const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t);
 };
+
+}} // namespace vw::ORBA
+
 
 #endif	/* ORBA_REFINER_HPP */
 

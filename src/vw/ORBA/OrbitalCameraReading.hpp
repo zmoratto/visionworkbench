@@ -22,15 +22,12 @@ using namespace vw::camera;
 struct OrbitalCameraReading : public OrbitalReading
 {
   boost::shared_ptr<PinholeModel> mCamera;
-  Quaternion<double> mQuat;
   
   OrbitalCameraReading( std::string id, timestamp_t time,
                         boost::shared_ptr<PinholeModel> cam ) 
-          : OrbitalReading(id, time, cam->camera_center())
-  {
-    mQuat = cam->camera_pose();
-    mCamera = cam;
-  }
+          : OrbitalReading(id, time, cam->camera_center()),
+            mCamera(cam)
+  {}
 };
 
 }}

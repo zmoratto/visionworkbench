@@ -6,6 +6,7 @@
  */
 
 #include <vw/ORBA/OrbitalCameraReading.hpp>
+#include <vw/ORBA/ObservationSet.hpp>
 #include <vw/ORBA/ORBARefiner.hpp>
 #include <vw/BundleAdjustment/ControlNetwork.h>
 
@@ -29,7 +30,7 @@ void write_results (std::string file, std::list<OrbitalCameraReading> data)
        it != data.end();
        it++)
   {
-    output << it->mCoord << it->mQuat << "\n";
+    output << it->mCoord << it->mCamera->camera_pose() << "\n";
   }
   
   output.close();
@@ -40,11 +41,10 @@ void write_results (std::string file, std::list<OrbitalCameraReading> data)
  */
 int main(int argc, char** argv)
 {
-  typedef boost::shared_ptr<AdjustedCameraModel> AdjCamObj;
   std::vector<std::string> camera_names;
   std::string file_name;
 
-    // Load the pinhole models
+// Load the pinhole models
   boost::filesystem::path my_path("/a15_rev033/");
     // default construction yields past-the-end
   boost::filesystem::directory_iterator end_itr;
@@ -57,16 +57,29 @@ int main(int argc, char** argv)
       camera_names.push_back(itr->leaf());
   }
 
+  ObservationSet observations;
+  observations.setExpectedReadingCount(camera_names.size());
+
   std::vector<boost::shared_ptr<PinholeModel> > cameras;
   BOOST_FOREACH( std::string const& in, camera_names )
   {
-    cameras.push_back( boost::shared_ptr<PinholeModel>( new PinholeModel(in) ) );
+      // Where does this really come from?
+    OrbitalReading::timestamp_t timestamp = 0;
+    
+    boost::shared_ptr<PinholeModel> new_cam(new PinholeModel(in));
+    
+      // Create a reading from the camera, store it in the observations
+    observations.addReading(OrbitalCameraReading("Where does the ID come from?",
+                                                 timestamp, new_cam));
   }
 
   // Load the control network
   std::string cnet_filename = "a15_rev033/a15_rev033-single_orbit-20110317-1313.cnet";
   boost::shared_ptr<ControlNetwork> network( new ControlNetwork("a15_rev033") );
   network->read_binary( cnet_filename );
+
+  // Preferably, we should sort the observations by time before passing into
+  // the refiner
 
 #if 0
     // This logic should be encapsulated in the ORBARefiner, not here in the

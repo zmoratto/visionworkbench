@@ -2,13 +2,16 @@
 #include <vw/orbital_refinement/DataRefiner.hpp>
 #include <vw/orbital_refinement/OrbitalReading.hpp>
 #include <OrbitalCameraReading.hpp>
+#include <ObservationSet.hpp>
 
 #include <list>
+#include <vector>
 
 using namespace vw::ba;
 
 namespace vw{
 namespace ORBA{
+
 
     void normalizeReadingsByTime(std::list<OrbitalCameraReading>& readings)
     {
@@ -46,15 +49,49 @@ namespace ORBA{
         return p_diff;
     }
 
-    bool refineORBAReadings(ControlNetwork& cnet,
-            std::list<OrbitalCameraReading>& readings,
-            std::list<OrbitalCameraReading>& refined)
+    bool refineORBAReadings(ObservationSet& obs, const Vector3& sigma_p,
+            const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t)
     {
+        // Extract the data from the observation set into a data format to
+        // pass into the OrbitalRefiner
+        
+        std::vector<OrbitalCameraReading> readings = obs.getReadings();
+        std::list<OrbitalReading> orReadings;
+        std::list<OrbitalReading> refinedOrReadings;
+
+        for( std::vector<OrbitalCameraReading>::iterator it = readings.begin();
+                it != readings.end();
+                it++) 
+        {
+            orReadings.push_back(new OrbitalReading(it->mId, it->mTime, it->mCoord));
+        }
 
         OrbitalRefiner orRefiner = new OrbitalRefiner();
+        if( !orRefiner.refineOrbitalReadings(orReadings, refinedOrReadings) )
+        {
+            std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
+            return false;
+        }
 
-        // Sort by time
-        readings.sort(OrbitalReading::TimestampLess);
+        // OR has been called, now put the refined data back into the
+        // observation set
+        int i = 0;
+        for( std::list<OrbitalReading>::iterator it = refinedOrReadings.begin();
+                it != refinedOrReadings.end();
+                it++, i++)
+        {
+            OrbitalCameraReading temp = obs.getReading(i);
+            // Make sure the IDs match, this should work as long as the
+            // observations have been sorted by time when passed into this method
+            if (temp.mId == it->mId)
+            {
+                temp.mCoord = it->mCoord;
+                temp.mTime = it->mTime;
+            }
+        }
+
+        // Reset the readings
+        readings = obs.getReadings();
 
         // Remember the time we're normalizing on, then normalize
         OrbitalReading::timestamp_t min_time = readings.front().mTime;
@@ -66,3 +103,4 @@ namespace ORBA{
     }
 
 }} // vw::ORBA
+
