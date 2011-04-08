@@ -1,11 +1,16 @@
 #include <ORBARefiner.hpp>
 #include <vw/orbital_refinement/DataRefiner.hpp>
 #include <vw/orbital_refinement/OrbitalReading.hpp>
+#include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
+#include <vw/orbital_refinement/TrajectoryCalculator.hpp>
+#include <vw/orbital_refinement/WeightCalculator.hpp>
 #include <OrbitalCameraReading.hpp>
 #include <ObservationSet.hpp>
 
 #include <list>
 #include <vector>
+
+#include "ORBADecisionVariableSet.hpp"
 
 using namespace vw::ba;
 
@@ -100,6 +105,68 @@ namespace ORBA{
         // Get an initial velocity
         Vector3 v0 = estimateInitialVelocity(readings);
 
+        // Data structure to hold our decision variables.
+        // Initialize it with our initial guess.
+        ORBADecisionVariableSet decision_vars(
+          GravityConstants::GM_MOON_MILLISECOND,
+          readings.begin()->mCoord, v0, readings, obs.getControlNetwork(),
+          sigma_p, sigma_r, sigma_s, sigma_t);
+
+        // Create data structures to hold weights and estimated locations.
+        // Weights are all initialized to 0.5
+        std::vector<double> weights(readings.size(), 0.5);
+        std::vector<Vector3> estimated_locations(readings.size());
+
+        // Calculate an initial set of locations
+        GravityAccelerationFunctor gravity(decision_vars.GM);
+        TrajectoryCalculator traj_calc(gravity);
+
+        // Calculate an initial set of weights
+        WeightCalculator weight_calc;
+
+        ORBAErrorEstimator error_func(readings, weights);
+
+        // We start each iteration through the loop with a guess for our decision variables,
+        // plus a set of weights for each point based on the previous guess.
+        uint32 iteration_count = 0;
+
+        const double IMPROVEMENT_THRESH = 1e-10;
+        const uint32 IMPROVEMENT_THRESH_TOL = 5;
+        double prev_error = 0;
+        uint32 thresh_ctr = 0;
+        while (true)
+        {
+            const uint32 MAX_CG_ITERATIONS = 500;
+            const uint32 MAX_OUTER_ITERATIONS = 1000;
+
+            prev_error = error_func(decision_vars);
+              // Minimize the weighted error
+            decision_vars = conjugate_gradient(error_func, decision_vars,
+                                               ArmijoStepSize(), MAX_CG_ITERATIONS);
+
+            double this_error = error_func(decision_vars);
+            double delta = prev_error - this_error;
+
+            if (delta < IMPROVEMENT_THRESH)
+            {
+                thresh_ctr++;
+            } else {
+                thresh_ctr = 0;
+            }
+              // See if we're done
+            if (thresh_ctr >= IMPROVEMENT_THRESH_TOL ||
+                ++iteration_count >= MAX_OUTER_ITERATIONS)
+            {
+              break;
+            }
+
+              // If we're not done, calculate another set of weights, using the latest
+              // location estimates.
+            gravity.setGM(decision_vars.GM);
+            traj_calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
+                                         decision_vars.timestamps, estimated_locations);
+            weight_calc.calculateWeights(readings, estimated_locations, weights);
+        }
     }
 
 }} // vw::ORBA
