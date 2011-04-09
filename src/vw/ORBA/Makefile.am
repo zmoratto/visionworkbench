@@ -9,10 +9,16 @@ lib_LTLIBRARIES =
 if MAKE_MODULE_ORBA
 
 include_HEADERS =              \
+  ObservationSet.hpp           \
+  ORBADecisionVariableSet.hpp  \
+  ORBAErrorEstimator.hpp       \
+  ORBAGradientSet.hpp          \
+  ORBARefiner.hpp              \
   OrbitalCameraReading.hpp
 
 libvwORBA_la_SOURCES =   \
-  ORBAErrorEstimator.cpp
+  ORBAErrorEstimator.cpp \
+  ORBARefiner.cpp
 
 libvwORBA_la_LIBADD = @MODULE_ORBA_LIBS@
 libvwORBA_la_LDFLAGS = @VW_LDFLAGS@ $(LIBTOOL_LIB_FLAGS)
