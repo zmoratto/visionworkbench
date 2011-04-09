@@ -35,7 +35,7 @@ public:
   result_type operator()(const domain_type& x) const;
 
   /// Evaluate the gradient for the given set of decision variables.
-  gradient_type gradient( domain_type const& x ) const;
+  gradient_type gradient(const domain_type& x) const;
 
   /// the dimension of the gradient vector.
   unsigned dimension() const;
@@ -67,6 +67,11 @@ private:
                      double timeVariance,
                      const std::vector<double>& timeWeights) const;
 
+  double calculateGradient(double& to_tweak,
+                           double tweak_scaling,
+                           const ORBADecisionVariableSet& x,
+                           double original_error) const;
+  
   boost::shared_ptr<ObservationSet> mObservations;
   
     // The relative weight of each point in OR.

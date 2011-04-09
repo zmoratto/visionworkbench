@@ -64,6 +64,12 @@ struct ORBADecisionVariableSet
   Vector3 precision_r; // between p and s, seed with [1,1,1]
   Vector3 precision_s; // between q and s, seed with camera sigma
   double precision_t;  // seed with sigma t
+
+    // Aliases for convenience, preferred over inheritence in this case.
+  double& GM;
+  Vector3& p0;
+  Vector3& v0;
+  std::vector<OrbitalReading::timestamp_t>& timestamps;
   
   ORBADecisionVariableSet( double GM_in, const Vector3& p0_in,
                            const Vector3& v0_in,
@@ -73,7 +79,11 @@ struct ORBADecisionVariableSet
                            const Vector3& sigma_r,
                            const Vector3& sigma_s, double sigma_t ) :
       trajectory( GM_in, p0_in, v0_in, obs ),
-      cnet(control_net)
+      cnet(control_net),
+      GM(trajectory.GM),
+      p0(trajectory.p0),
+      v0(trajectory.v0),
+      timestamps(trajectory.timestamps)
   {
       // User passes in sigmas instead of precision as that is
       // more intuitive for the user to understand
@@ -82,8 +92,24 @@ struct ORBADecisionVariableSet
     precision_s = elem_quot(1, elem_prod(sigma_s,sigma_s));
     precision_t = 1/( sigma_t * sigma_t );
   }
-};
+
+  ORBADecisionVariableSet(const ORBADecisionVariableSet& to_copy)
+          : trajectory(),
+            cnet(to_copy.cnet),
+            GM(trajectory.GM),
+            p0(trajectory.p0),
+            v0(trajectory.v0),
+            timestamps(trajectory.timestamps)
+  {
+    GM = to_copy.GM;
+    p0 = to_copy.p0;
+    v0 = to_copy.v0;
+    timestamps = to_copy.timestamps;
+  }
+  
     
+};
+
 }} // namespace vw::ORBA
 
 

@@ -9,6 +9,19 @@
 
 using namespace vw;
 
+// Anonymous namespace for local utility functions
+namespace 
+{
+      // Calculate the amount that should be added to value
+      // for use in a numeric gradient calculation
+    double getGradientEpsilon(double value, double scale, double minimum)
+    {
+      return std::max(minimum, fabs(value*scale));
+    }
+
+}
+
+
 namespace vw {
 namespace ORBA {
 
@@ -334,5 +347,129 @@ double ORBAErrorEstimator::TimingError(const std::vector<double>& timeValues,
    return error + diff;
 }
 
-   
+ORBAGradientSet ORBAErrorEstimator::gradient(
+    const ORBADecisionVariableSet& x_in ) const
+{
+    // Get the error right @ x
+  double cur_error = operator()(x_in);
+
+    // Create a gradient set to pass back
+  ORBAGradientSet gradient(x_in);
+
+    // Create a mutable copy of x
+  ORBADecisionVariableSet x = x_in;
+
+    // Get a forward gradient for all the elements of x, one at a time
+  gradient.GM = calculateGradient(x.GM, 1e-7, x, cur_error);
+  for (int i = 0; i < 3; ++i)
+  {
+    gradient.p0[i] = calculateGradient(x.p0[i], 1e-7, x, cur_error);
+    gradient.v0[i] = calculateGradient(x.v0[i], 1e-7, x, cur_error);
+  }
+
+    // Optimization idea, only recalculate the portion of the error relevant
+    // to each timestamp.
+  for (std::size_t i = 0; i < x.timestamps.size(); i++)
+  {
+      // Because times are fixed precision, we use a fixed epsilon.
+      // Put gradient calculation right here instead of calling the
+      // function used for other variables.
+    const OrbitalReading::timestamp_t eps = 2; // Fixed epsilon of 2 ms.
+    x.timestamps[i] += eps;
+    double error_new = operator()(x);
+    gradient.t[i] = (error_new - cur_error) / (eps);
+    x.timestamps[i] -= eps;
+  }
+
+    // The rest of the gradients go in x_k.
+    // We'll keep a running index
+  std::size_t i_x_k = 0;
+
+    // Gradients for landmark locations
+  BOOST_FOREACH(ControlPoint& cp, x.cnet)
+  {
+      // Get the estimated location of this control point, as stored
+      // in the control network. This is a decision variable.
+    Vector3 b = cp.position();
+    for (int i = 0; i < 3; ++i)
+    {
+        // We can't use the same function for the gradient calculation
+        // because we don't have a way to get a reference to the
+        // position vector we're working on.  Essentially repeat
+        // the gradient calculation code here.
+      double b_save = b[i];
+      double epsilon = getGradientEpsilon(b_save, 1e-7, 1e-7);
+      b[i] += epsilon;
+      cp.set_position(b);
+      double error_new = operator()(x);
+      gradient.x_k[i_x_k++] = (error_new - cur_error) / (epsilon);
+      b[i] = b_save;
+    }
+    cp.set_position(b);
+  }
+
+    // Now go through pj
+  BOOST_FOREACH(Vector3& pj, x.pj)
+  {
+    for (int i = 0; i < 3; ++i)
+    {
+      gradient.x_k[i_x_k++] =
+          calculateGradient(pj[i], 1e-7, x, cur_error);
+    }
+  }
+  
+    // cj_second
+  BOOST_FOREACH(Vector4& cj, x.cj_second)
+  {
+    for (int i = 0; i < 4; ++i)
+    {
+      gradient.x_k[i_x_k++] =
+          calculateGradient(cj[i], 1e-7, x, cur_error);
+    }
+  }
+
+    // precision values
+  for (int i = 0; i < 2; i++)
+  {
+    gradient.x_k[i_x_k++] =
+        calculateGradient(x.precision_p[i], 1e-7, x, cur_error);
+  }
+  for (int i = 0; i < 3; i++)
+  {
+    gradient.x_k[i_x_k++] =
+        calculateGradient(x.precision_r[i], 1e-7, x, cur_error);
+  }
+  for (int i = 0; i < 3; i++)
+  {
+    gradient.x_k[i_x_k++] =
+        calculateGradient(x.precision_s[i], 1e-7, x, cur_error);
+  }
+  gradient.x_k[i_x_k++] =
+      calculateGradient(x.precision_t, 1e-7, x, cur_error);
+  
+  return gradient;
+}
+
+/// Calculate a numeric gradient using forward finite difference.
+/// \param to_tweak A reference to the value for which a gradient
+///        is being calculated.
+/// \param tweak_scaling The amount by which the variable should be
+///        scaled when calculating the gradient.  Also serves as a
+///        minimum amount by which the variable will be tweaked.
+/// \param x The decision variable set to use in the calculation.
+/// \param original_error The error before any tweaks were made.
+double ORBAErrorEstimator::calculateGradient(
+    double& to_tweak,
+    double tweak_scaling,
+    const ORBADecisionVariableSet& x,
+    double original_error) const
+{
+  double save = to_tweak;
+  double eps = getGradientEpsilon(save, tweak_scaling, tweak_scaling);
+  to_tweak += eps;
+  double new_error = operator()(x);
+  to_tweak = save;
+  return (new_error - original_error) / eps;
+}
+
 }}
