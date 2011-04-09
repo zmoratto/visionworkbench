@@ -10,7 +10,7 @@ class WeightCalculator
 public:
 
   template <typename ContainerT>
-  void calculateWeights(ContainerT& observations,
+  void calculateWeights(const ContainerT& observations,
                         const std::vector<vw::Vector3>& estimated_locations,
                         std::vector<double>& weights);
 
@@ -106,7 +106,7 @@ inline double WeightCalculator::timeVarianceCalculator(
    */
 template <typename ContainerT>
 inline void WeightCalculator::calculateWeights(
-    ContainerT& observations,
+    const ContainerT& observations,
     const std::vector<vw::Vector3>& estimated_locations,
     std::vector<double>& weights)
 {
@@ -122,7 +122,7 @@ inline void WeightCalculator::calculateWeights(
   std::vector<double> timeWeights;
   
   i = 0;
-  for (typename ContainerT::iterator it = observations.begin();
+  for (typename ContainerT::const_iterator it = observations.begin();
        it != observations.end(); ++it, ++i)
   {
     errorVector[0] = estimated_locations[i][0] - it->mCoord[0]; 
