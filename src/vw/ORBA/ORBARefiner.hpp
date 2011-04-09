@@ -8,9 +8,9 @@
 #ifndef ORBA_REFINER_HPP
 #define	ORBA_REFINER_HPP
 
-#include <OrbitalCameraReading.hpp>
+#include <vw/ORBA/OrbitalCameraReading.hpp>
 #include <vw/BundleAdjustment/ControlNetwork.h>
-#include <ObservationSet.hpp>
+#include <vw/ORBA/ObservationSet.hpp>
 
 namespace vw {
 namespace ORBA {

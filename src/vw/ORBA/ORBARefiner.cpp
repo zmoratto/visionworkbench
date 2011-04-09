@@ -1,16 +1,16 @@
-#include <ORBARefiner.hpp>
+#include <vw/ORBA/ORBARefiner.hpp>
+#include <vw/ORBA/ORBAErrorEstimator.hpp>
 #include <vw/orbital_refinement/DataRefiner.hpp>
 #include <vw/orbital_refinement/OrbitalReading.hpp>
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 #include <vw/orbital_refinement/WeightCalculator.hpp>
-#include <OrbitalCameraReading.hpp>
-#include <ObservationSet.hpp>
+#include <vw/ORBA/OrbitalCameraReading.hpp>
+#include <vw/ORBA/ObservationSet.hpp>
+#include <vw/ORBA/ORBADecisionVariableSet.hpp>
 
 #include <list>
 #include <vector>
-
-#include "ORBADecisionVariableSet.hpp"
 
 using namespace vw::ba;
 
@@ -84,7 +84,7 @@ namespace ORBA{
             orReadings.push_back(new OrbitalReading(it->mId, it->mTime, it->mCoord));
         }
 
-        OrbitalRefiner orRefiner = new OrbitalRefiner();
+        OrbitalRefiner orRefiner;
         if( !orRefiner.refineOrbitalReadings(orReadings, refinedOrReadings) )
         {
             std::cerr << "Something went wrong when adjusting the orbital readings" << std::endl;
