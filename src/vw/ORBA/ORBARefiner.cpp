@@ -44,20 +44,24 @@ namespace
 }
     
     bool ORBARefiner::refineORBAReadings(
-        ObservationSet& obs, const Vector3& sigma_p,
+        ObservationSet& obs, const Vector2& sigma_p,
         const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t)
     {
         // First, get orbital_refinement to make a first
         // pass at fixing the orbit.
+
+        // Normalize the times.  Do this up front so we're sure we aren't getting
+        // any conflicting normalizations
+        obs.normalizeTimes();
       
         // Extract the data from the observation set into a data format to
         // pass into the OrbitalRefiner
         const std::vector<OrbitalCameraReading>& readings = obs.getReadings();
         std::list<OrbitalReading> orReadings;
         std::list<OrbitalReading> refinedOrReadings;
-        for( const std::vector<OrbitalCameraReading>::iterator it = readings.begin();
-                it != readings.end();
-                it++) 
+        for(std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
+            it != readings.end();
+            it++) 
         {
           orReadings.push_back(OrbitalReading(it->mId, it->mTime, it->mCoord));
         }
@@ -69,39 +73,13 @@ namespace
             return false;
         }
 
-        // OR has been called, now put the refined data back into the
-        // observation set
-        int i = 0;
-        for( std::list<OrbitalReading>::iterator it = refinedOrReadings.begin();
-                it != refinedOrReadings.end();
-                it++, i++)
-        {
-            OrbitalCameraReading& temp = obs.getReading(i);
-            // Make sure the IDs match, this should work as long as the
-            // observations have been sorted by time when passed into this method
-            if (temp.mId == it->mId)
-            {
-                temp.mCoord = it->mCoord;
-                temp.mTime = it->mTime;
-            }
-        }
-          // *** Note:  Are we really supposed to put the results back
-          // into our observations?  I don't think so.  I think we put them in our
-          // decision variables. ***
-        
-
-        // Reset the readings
-        readings = obs.getReadings();
-          // normalize times
-        obs.normalizeTimes();
-        
         // Data structure to hold our decision variables.
         // Initialize it with our initial guess.
         ORBADecisionVariableSet decision_vars(
             orRefiner.getCalculatedGM(),
             orRefiner.getCalculatedInitialPosition(),
             orRefiner.getCalculatedInitialVelocity(),
-            readings, obs.getControlNetwork(),
+            refinedOrReadings, obs.getControlNetwork(),
             sigma_p, sigma_r, sigma_s, sigma_t);
 
         // Create data structures to hold weights and estimated locations.
@@ -116,7 +94,8 @@ namespace
         // Calculate an initial set of weights
         WeightCalculator weight_calc;
 
-        ORBAErrorEstimator error_func(obs, orRefiner.getInlierWeights());
+        ORBAErrorEstimator error_func(boost::shared_ptr<ObservationSet>(&obs),
+                                      orRefiner.getInlierWeights());
 
         // We start each iteration through the loop with a guess for our decision variables,
         // plus a set of weights for each point based on the previous guess.
