@@ -11,7 +11,6 @@
 
 #include <vw/Math/Vector.h>
 #include <vw/Math/ConjugateGradient.h>
-#include <vector>
 #include <cmath>
 #include <limits>
 // For output stream debug, remove these later

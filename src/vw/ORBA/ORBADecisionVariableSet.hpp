@@ -70,16 +70,17 @@ struct ORBADecisionVariableSet
   Vector3& p0;
   Vector3& v0;
   std::vector<OrbitalReading::timestamp_t>& timestamps;
-  
+
+  template <typename CollectionT>
   ORBADecisionVariableSet( double GM_in, const Vector3& p0_in,
                            const Vector3& v0_in,
-                           const std::list<OrbitalCameraReading>& obs,
-                           ControlNetwork& control_net,
-                           const Vector3& sigma_p,
+                           const CollectionT& obs,
+                           boost::shared_ptr<ControlNetwork> control_net,
+                           const Vector2& sigma_p,
                            const Vector3& sigma_r,
                            const Vector3& sigma_s, double sigma_t ) :
       trajectory( GM_in, p0_in, v0_in, obs ),
-      cnet(control_net),
+      cnet(*control_net),
       GM(trajectory.GM),
       p0(trajectory.p0),
       v0(trajectory.v0),
