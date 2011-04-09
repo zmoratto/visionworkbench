@@ -1,6 +1,5 @@
-#include "DataRefiner.hpp"
-#include "OrbitalReading.hpp"
-#include "TrajectoryGradientSet.hpp"
+#include <vw/orbital_refinement/DataRefiner.hpp>
+#include <vw/orbital_refinement/OrbitalReading.hpp>
 #include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 #include <vw/orbital_refinement/TrajectoryDecisionVariableSet.hpp>
 #include <vw/orbital_refinement/TrajectoryGradientSet.hpp>
@@ -113,32 +112,32 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
   // Next, normalize times so that it starts at t=0
   normalizeReadingsByTime(readings);
 
-    // Get an initial velocity
+  // Get an initial velocity
   Vector3 v0 = estimateInitialVelocity(readings);
 
-    // Data structure to hold our decision variables.
-    // Initialize it with our initial guess.
+  // Data structure to hold our decision variables.
+  // Initialize it with our initial guess.
   TrajectoryDecisionVariableSet decision_vars(
       GravityConstants::GM_MOON_MILLISECOND,
       readings.begin()->mCoord, v0, readings);
 
-    // Create data structures to hold weights and estimated locations.
-    // Weights are all initialized to 0.5
-  std::vector<double> weights(readings.size(), 0.5);
+  // Create data structures to hold weights and estimated locations.
+  // Weights are all initialized to 0.5
+  mWeights.assign(readings.size(), 0.5);
   std::vector<Vector3> estimated_locations(readings.size());
 
-    // Calculate an initial set of locations
+  // Calculate an initial set of locations
   GravityAccelerationFunctor gravity(decision_vars.GM);
   TrajectoryCalculator traj_calc(gravity);
   
-    // Calculate an initial set of weights
+  // Create the weight calculator
   WeightCalculator weight_calc;
 
-    // Create an error estimator
-  TrajectoryErrorEstimator error_func(readings, weights);
+  // Create an error estimator
+  TrajectoryErrorEstimator error_func(readings, mWeights);
 
-    // We start each iteration through the loop with a guess for our decision variables,
-    // plus a set of weights for each point based on the previous guess.
+  // We start each iteration through the loop with a guess for our decision variables,
+  // plus a set of weights for each point based on the previous guess.
   uint32 iteration_count = 0;
   
   const double IMPROVEMENT_THRESH = 1e-10;
@@ -176,7 +175,7 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
     gravity.setGM(decision_vars.GM);
     traj_calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
                                  decision_vars.timestamps, estimated_locations);
-    weight_calc.calculateWeights(readings, estimated_locations, weights);
+    weight_calc.calculateWeights(readings, estimated_locations, mWeights);
   }
   
   // Place the adjusted times and coordinates into the passed in list of readings.
@@ -200,6 +199,11 @@ bool OrbitalRefiner::refineOrbitalReadings(std::list<OrbitalReading>& readings,
   {
       refined.push_back(*it);
   }
+
+  // Save our calculated parameters so they can be retrieved if wanted.
+  mGM = decision_vars.GM;
+  mP0 = decision_vars.p0;
+  mV0 = decision_vars.v0;
   
   return true;
 }
