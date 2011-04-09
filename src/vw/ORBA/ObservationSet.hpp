@@ -17,6 +17,11 @@ class ObservationSet
 {
 public:
 
+    // Default constructor
+  ObservationSet()
+          : mBaseTime(0)
+  {}
+
     // Indicate how many cameras to prepare for.  For efficiency.
   void setExpectedReadingCount(std::size_t reading_count)
   {
@@ -53,12 +58,45 @@ public:
   {
     return mReadings[index];
   }
+
+  void normalizeTimes()
+  {
+    mBaseTime = mReadings.begin()->mTime;
+    if (mBaseTime == 0)
+      return;
+    
+    for (std::vector<OrbitalCameraReading>::iterator it = mReadings.begin();
+         it != mReadings.end();
+         it++)
+    {
+      it->mTime -= mBaseTime;
+    }
+  }
+
+  void denormalizeTimes()
+  {
+    if (mBaseTime == 0)
+      return;
+    
+    for (std::vector<OrbitalCameraReading>::iterator it = mReadings.begin();
+         it != mReadings.end();
+         it++)
+    {
+      it->mTime += mBaseTime;
+    }
+    mBaseTime = 0;
+  }
+  
   
 private:
 
   std::vector<OrbitalCameraReading> mReadings;
   
   boost::shared_ptr<ControlNetwork> mControlNetwork;
+
+    // When times are normalized, this is the amount
+    // that has been subtracted from each time.
+  OrbitalReading::timestamp_t mBaseTime;
 };
         
 } }

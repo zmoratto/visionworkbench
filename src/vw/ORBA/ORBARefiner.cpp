@@ -8,6 +8,7 @@
 #include <vw/ORBA/OrbitalCameraReading.hpp>
 #include <vw/ORBA/ObservationSet.hpp>
 #include <vw/ORBA/ORBADecisionVariableSet.hpp>
+#include <vw/Math/ConjugateGradient.h>
 
 #include <list>
 #include <vector>
@@ -18,70 +19,47 @@ namespace vw{
 namespace ORBA{
 
 
-    void normalizeReadingsByTime(std::vector<OrbitalCameraReading>& readings)
-    {
-        // Sort the readings by timestamp.
-        readings.sort(OrbitalReading::TimestampLess());
-
-        // Normalize the time readings by subtracting the lowest time
-        // from all of the timestamps.
-        OrbitalReading::timestamp_t min_time = readings.begin()->mTime;
-        for (std::vector<OrbitalCameraReading>::iterator it = readings.begin();
-          it != readings.end();
-          it++)
-        {
-          it->mTime -= min_time;
-        }
-    }
-
-    void denormalizeReadingsByTime(std::vector<OrbitalCameraReading>& readings,
-                                 OrbitalReading::timestamp_t base_time)
-    {
-      // denormalize the time readings by adding the base time
-      // to all of the timestamps.
-      for (std::vector<OrbitalCameraReading>::iterator it = readings.begin();
-        it != readings.end();
-        it++)
-      {
-        it->mTime += base_time;
-      }
-    }
-
+// Anonymous namespace for local utilties
+namespace 
+{
     Vector3 estimateInitialVelocity(const std::vector<OrbitalCameraReading>& readings)
     {
-          // We base the initial velocity on the first 5 readings, or fewer if there
-          // are less than 5 available.
-        int reading_count = (readings.size() > 5) ? 5 : readings.size();
-
-          // Move to the 5th reading
-        std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
-        std::advance(it, reading_count-1);
-        Vector3 p_diff = it->mCoord - readings.begin()->mCoord;
-        OrbitalReading::timestamp_t t_diff = it->mTime - readings.begin()->mTime;
-
-          // Velocity is now just distance / time.
-          // Note that you get the exact same result as if you took the
-          // average distance / average time:
-          //   ((x2-x1 + x1-x0)/2) / ((t2-t1 + t1-t0)/2) == (x2-x0)/(t2-t0)
-        p_diff /= t_diff;
-        return p_diff;
+        // We base the initial velocity on the first 5 readings, or fewer if there
+        // are less than 5 available.
+      int reading_count = (readings.size() > 5) ? 5 : readings.size();
+      
+        // Move to the 5th reading
+      std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
+      std::advance(it, reading_count-1);
+      Vector3 p_diff = it->mCoord - readings.begin()->mCoord;
+      OrbitalReading::timestamp_t t_diff = it->mTime - readings.begin()->mTime;
+      
+        // Velocity is now just distance / time.
+        // Note that you get the exact same result as if you took the
+        // average distance / average time:
+        //   ((x2-x1 + x1-x0)/2) / ((t2-t1 + t1-t0)/2) == (x2-x0)/(t2-t0)
+      p_diff /= t_diff;
+      return p_diff;
     }
-
-    bool refineORBAReadings(ObservationSet& obs, const Vector3& sigma_p,
-            const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t)
+}
+    
+    bool ORBARefiner::refineORBAReadings(
+        ObservationSet& obs, const Vector3& sigma_p,
+        const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t)
     {
+        // First, get orbital_refinement to make a first
+        // pass at fixing the orbit.
+      
         // Extract the data from the observation set into a data format to
         // pass into the OrbitalRefiner
-        
         std::vector<OrbitalCameraReading> readings = obs.getReadings();
         std::list<OrbitalReading> orReadings;
         std::list<OrbitalReading> refinedOrReadings;
-
         for( std::vector<OrbitalCameraReading>::iterator it = readings.begin();
                 it != readings.end();
                 it++) 
         {
-            orReadings.push_back(new OrbitalReading(it->mId, it->mTime, it->mCoord));
+          orReadings.push_back(OrbitalReading(it->mId, it->mTime, it->mCoord));
         }
 
         OrbitalRefiner orRefiner;
@@ -98,7 +76,7 @@ namespace ORBA{
                 it != refinedOrReadings.end();
                 it++, i++)
         {
-            OrbitalCameraReading temp = obs.getReading(i);
+            OrbitalCameraReading& temp = obs.getReading(i);
             // Make sure the IDs match, this should work as long as the
             // observations have been sorted by time when passed into this method
             if (temp.mId == it->mId)
@@ -107,23 +85,24 @@ namespace ORBA{
                 temp.mTime = it->mTime;
             }
         }
+          // *** Note:  Are we really supposed to put the results back
+          // into our observations?  I don't think so.  I think we put them in our
+          // decision variables. ***
+        
 
         // Reset the readings
         readings = obs.getReadings();
-
-        // Remember the time we're normalizing on, then normalize
-        OrbitalReading::timestamp_t min_time = readings.front().mTime;
-        normalizeReadingsByTime(readings);
-
-        // Get an initial velocity
-        Vector3 v0 = estimateInitialVelocity(readings);
-
+          // normalize times
+        obs.normalizeTimes();
+        
         // Data structure to hold our decision variables.
         // Initialize it with our initial guess.
         ORBADecisionVariableSet decision_vars(
-          GravityConstants::GM_MOON_MILLISECOND,
-          readings.begin()->mCoord, v0, readings, obs.getControlNetwork(),
-          sigma_p, sigma_r, sigma_s, sigma_t);
+            orRefiner.getCalculatedGM(),
+            orRefiner.getCalculatedInitialPosition(),
+            orRefiner.getCalculatedInitialVelocity(),
+            readings, obs.getControlNetwork(),
+            sigma_p, sigma_r, sigma_s, sigma_t);
 
         // Create data structures to hold weights and estimated locations.
         // Weights are all initialized to 0.5
@@ -154,8 +133,12 @@ namespace ORBA{
 
             prev_error = error_func(decision_vars);
               // Minimize the weighted error
-            decision_vars = conjugate_gradient(error_func, decision_vars,
-                                               ArmijoStepSize(), MAX_CG_ITERATIONS);
+              // ***
+              // Commented out temporarily so we can focus on local
+              // errors first
+              // ***
+//             decision_vars = conjugate_gradient(error_func, decision_vars,
+//                                                ArmijoStepSize(), MAX_CG_ITERATIONS);
 
             double this_error = error_func(decision_vars);
             double delta = prev_error - this_error;
@@ -172,6 +155,10 @@ namespace ORBA{
             {
               break;
             }
+
+              // *** Question:  Do we calculate weights as part of ORBA, or
+              // do we simply continue to use the final weights from our OR-only pass?
+              // ***
 
               // If we're not done, calculate another set of weights, using the latest
               // location estimates.
@@ -194,7 +181,7 @@ namespace ORBA{
         }
 
         // Next, denormalize times
-        denormalizeReadingsByTime(readings, min_time);
+        obs.denormalizeReadingTimes();
     }
 
 }} // vw::ORBA

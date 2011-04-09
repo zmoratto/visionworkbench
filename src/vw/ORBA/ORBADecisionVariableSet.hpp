@@ -106,8 +106,6 @@ struct ORBADecisionVariableSet
     v0 = to_copy.v0;
     timestamps = to_copy.timestamps;
   }
-  
-    
 };
 
 }} // namespace vw::ORBA
