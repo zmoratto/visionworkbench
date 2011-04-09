@@ -18,7 +18,7 @@ namespace vw{
 namespace ORBA{
 
 
-    void normalizeReadingsByTime(std::list<OrbitalCameraReading>& readings)
+    void normalizeReadingsByTime(std::vector<OrbitalCameraReading>& readings)
     {
         // Sort the readings by timestamp.
         readings.sort(OrbitalReading::TimestampLess());
@@ -26,7 +26,7 @@ namespace ORBA{
         // Normalize the time readings by subtracting the lowest time
         // from all of the timestamps.
         OrbitalReading::timestamp_t min_time = readings.begin()->mTime;
-        for (std::list<OrbitalCameraReading>::iterator it = readings.begin();
+        for (std::vector<OrbitalCameraReading>::iterator it = readings.begin();
           it != readings.end();
           it++)
         {
@@ -34,14 +34,27 @@ namespace ORBA{
         }
     }
 
-    Vector3 estimateInitialVelocity(const std::list<OrbitalCameraReading>& readings)
+    void denormalizeReadingsByTime(std::vector<OrbitalCameraReading>& readings,
+                                 OrbitalReading::timestamp_t base_time)
+    {
+      // denormalize the time readings by adding the base time
+      // to all of the timestamps.
+      for (std::vector<OrbitalCameraReading>::iterator it = readings.begin();
+        it != readings.end();
+        it++)
+      {
+        it->mTime += base_time;
+      }
+    }
+
+    Vector3 estimateInitialVelocity(const std::vector<OrbitalCameraReading>& readings)
     {
           // We base the initial velocity on the first 5 readings, or fewer if there
           // are less than 5 available.
         int reading_count = (readings.size() > 5) ? 5 : readings.size();
 
           // Move to the 5th reading
-        std::list<OrbitalCameraReading>::const_iterator it = readings.begin();
+        std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
         std::advance(it, reading_count-1);
         Vector3 p_diff = it->mCoord - readings.begin()->mCoord;
         OrbitalReading::timestamp_t t_diff = it->mTime - readings.begin()->mTime;
@@ -167,6 +180,21 @@ namespace ORBA{
                                          decision_vars.timestamps, estimated_locations);
             weight_calc.calculateWeights(readings, estimated_locations, weights);
         }
+
+        // Place the adjusted times and coordinates into the passed in list of readings.
+        // They are already in estimated_locations and decision_vars.timestamps.
+        // We just need to transfer them into the readings list.
+        std::vector<OrbitalCameraReading>::iterator reading_it = readings.begin();
+        for (int i = 0;
+             reading_it != readings.end();
+             ++reading_it, ++i)
+        {
+          reading_it->mTime = decision_vars.timestamps[i];
+          reading_it->mCoord = estimated_locations[i];
+        }
+
+        // Next, denormalize times
+        denormalizeReadingsByTime(readings, min_time);
     }
 
 }} // vw::ORBA
