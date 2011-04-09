@@ -52,10 +52,10 @@ namespace
       
         // Extract the data from the observation set into a data format to
         // pass into the OrbitalRefiner
-        std::vector<OrbitalCameraReading> readings = obs.getReadings();
+        const std::vector<OrbitalCameraReading>& readings = obs.getReadings();
         std::list<OrbitalReading> orReadings;
         std::list<OrbitalReading> refinedOrReadings;
-        for( std::vector<OrbitalCameraReading>::iterator it = readings.begin();
+        for( const std::vector<OrbitalCameraReading>::iterator it = readings.begin();
                 it != readings.end();
                 it++) 
         {
@@ -106,7 +106,7 @@ namespace
 
         // Create data structures to hold weights and estimated locations.
         // Weights are all initialized to 0.5
-        std::vector<double> weights(readings.size(), 0.5);
+        std::vector<double>& weights = orRefiner.getInlierWeights();
         std::vector<Vector3> estimated_locations(readings.size());
 
         // Calculate an initial set of locations
@@ -116,7 +116,7 @@ namespace
         // Calculate an initial set of weights
         WeightCalculator weight_calc;
 
-        ORBAErrorEstimator error_func(readings, weights);
+        ORBAErrorEstimator error_func(obs, orRefiner.getInlierWeights());
 
         // We start each iteration through the loop with a guess for our decision variables,
         // plus a set of weights for each point based on the previous guess.
