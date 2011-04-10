@@ -116,8 +116,8 @@ namespace
               // Commented out temporarily so we can focus on local
               // errors first
               // ***
-//             decision_vars = conjugate_gradient(error_func, decision_vars,
-//                                                ArmijoStepSize(), MAX_CG_ITERATIONS);
+            decision_vars = conjugate_gradient(error_func, decision_vars,
+                                               ArmijoStepSize(), MAX_CG_ITERATIONS);
 
             double this_error = error_func(decision_vars);
             double delta = prev_error - this_error;
@@ -150,17 +150,19 @@ namespace
         // Place the adjusted times and coordinates into the passed in list of readings.
         // They are already in estimated_locations and decision_vars.timestamps.
         // We just need to transfer them into the readings list.
-        std::vector<OrbitalCameraReading>::iterator reading_it = readings.begin();
-        for (int i = 0;
-             reading_it != readings.end();
-             ++reading_it, ++i)
-        {
-          reading_it->mTime = decision_vars.timestamps[i];
-          reading_it->mCoord = estimated_locations[i];
-        }
+//         std::vector<OrbitalCameraReading>::iterator reading_it = readings.begin();
+//         for (int i = 0;
+//              reading_it != readings.end();
+//              ++reading_it, ++i)
+//         {
+//           reading_it->mTime = decision_vars.timestamps[i];
+//           reading_it->mCoord = estimated_locations[i];
+//         }
 
         // Next, denormalize times
-        obs.denormalizeReadingTimes();
+        obs.denormalizeTimes();
+
+        return true;
     }
 
 }} // vw::ORBA

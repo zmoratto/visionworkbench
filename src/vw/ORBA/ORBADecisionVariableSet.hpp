@@ -42,7 +42,7 @@ struct ORBADecisionVariableSet
     // decision variable vector are the ControlPoint coordinates,
     // which are the calculated 3D coordinates of each landmark.
     // We'll be modifying them in-place in the Control Network.
-  ControlNetwork& cnet;
+  boost::shared_ptr<ControlNetwork> cnet;
   
     // Camera coordinates; the first half of Cj.
   std::vector<Vector3> pj;
@@ -71,6 +71,7 @@ struct ORBADecisionVariableSet
   Vector3& v0;
   std::vector<OrbitalReading::timestamp_t>& timestamps;
 
+    // Fully populated constructor
   template <typename CollectionT>
   ORBADecisionVariableSet( double GM_in, const Vector3& p0_in,
                            const Vector3& v0_in,
@@ -80,7 +81,7 @@ struct ORBADecisionVariableSet
                            const Vector3& sigma_r,
                            const Vector3& sigma_s, double sigma_t ) :
       trajectory( GM_in, p0_in, v0_in, obs ),
-      cnet(*control_net),
+      cnet(control_net),
       GM(trajectory.GM),
       p0(trajectory.p0),
       v0(trajectory.v0),
@@ -94,9 +95,14 @@ struct ORBADecisionVariableSet
     precision_t = 1/( sigma_t * sigma_t );
   }
 
+    // Copy constructor
   ORBADecisionVariableSet(const ORBADecisionVariableSet& to_copy)
           : trajectory(),
             cnet(to_copy.cnet),
+            precision_p(to_copy.precision_p),
+            precision_r(to_copy.precision_r),
+            precision_s(to_copy.precision_s),
+            precision_t(to_copy.precision_t),
             GM(trajectory.GM),
             p0(trajectory.p0),
             v0(trajectory.v0),
@@ -107,6 +113,31 @@ struct ORBADecisionVariableSet
     v0 = to_copy.v0;
     timestamps = to_copy.timestamps;
   }
+
+    // default constructor
+  ORBADecisionVariableSet()
+          : trajectory(),
+            GM(trajectory.GM),
+            p0(trajectory.p0),
+            v0(trajectory.v0),
+            timestamps(trajectory.timestamps)
+  {
+        
+  }
+
+  ORBADecisionVariableSet& operator=(const ORBADecisionVariableSet& rhs)
+  {
+    trajectory = rhs.trajectory;
+    cnet = rhs.cnet;
+    pj = rhs.pj;
+    cj_second = rhs.cj_second;
+    precision_p = rhs.precision_p;
+    precision_r = rhs.precision_r;
+    precision_s = rhs.precision_s;
+    precision_t = rhs.precision_t;
+    return *this;
+  }
+
 };
 
 }} // namespace vw::ORBA
