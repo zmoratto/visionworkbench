@@ -118,8 +118,8 @@ namespace
               // Commented out temporarily so we can focus on local
               // errors first
               // ***
-//             decision_vars = conjugate_gradient(error_func, decision_vars,
-//                                                ArmijoStepSize(), MAX_CG_ITERATIONS);
+            decision_vars = conjugate_gradient(error_func, decision_vars,
+                                               ArmijoStepSize(), MAX_CG_ITERATIONS);
 
             double this_error = error_func(decision_vars);
             double delta = prev_error - this_error;
@@ -155,6 +155,7 @@ namespace
         // Place the adjusted times and coordinates into the passed in observation set.
         // They are already in estimated_locations and decision_vars.timestamps.
         // We just need to transfer them into the readings list.
+
         dest.setControlNetwork(obs.getControlNetwork());
         dest.setExpectedReadingCount(readings.size());
         for( std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();

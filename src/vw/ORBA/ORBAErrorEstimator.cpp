@@ -178,7 +178,7 @@ double ORBAErrorEstimator::ProjectionError(
 {
     // Loop through the control network
   double error = 0;
-  BOOST_FOREACH(const ControlPoint& cp, x.cnet)
+  BOOST_FOREACH(const ControlPoint& cp, *x.cnet)
   {
       // Get the estimated location of this control point, as stored
       // in the control network. This is a decision variable.
@@ -386,7 +386,7 @@ ORBAGradientSet ORBAErrorEstimator::gradient(
   std::size_t i_x_k = 0;
 
     // Gradients for landmark locations
-  BOOST_FOREACH(ControlPoint& cp, x.cnet)
+  BOOST_FOREACH(ControlPoint& cp, *x.cnet)
   {
       // Get the estimated location of this control point, as stored
       // in the control network. This is a decision variable.
@@ -470,6 +470,13 @@ double ORBAErrorEstimator::calculateGradient(
   double new_error = operator()(x);
   to_tweak = save;
   return (new_error - original_error) / eps;
+}
+
+unsigned ORBAErrorEstimator::dimension() const
+{
+  return mObservations->getReadings().size() * 8
+      + mObservations->getControlNetwork()->size() * 3
+      + 16;
 }
 
 }}
