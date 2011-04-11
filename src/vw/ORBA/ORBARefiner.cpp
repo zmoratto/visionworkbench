@@ -13,6 +13,8 @@
 #include <list>
 #include <vector>
 
+#include "ObservationSet.hpp"
+
 using namespace vw::ba;
 
 namespace vw{
@@ -44,7 +46,7 @@ namespace
 }
     
     bool ORBARefiner::refineORBAReadings(
-        ObservationSet& obs, const Vector2& sigma_p,
+        ObservationSet obs, ObservationSet& dest, const Vector2& sigma_p,
         const Vector3& sigma_r, const Vector3& sigma_s, double sigma_t)
     {
         // First, get orbital_refinement to make a first
@@ -147,20 +149,25 @@ namespace
             weight_calc.calculateWeights(readings, estimated_locations, weights);
         }
 
-        // Place the adjusted times and coordinates into the passed in list of readings.
+        // ***
+        // Need to decide how we actually want to return everything
+        // ***
+        // Place the adjusted times and coordinates into the passed in observation set.
         // They are already in estimated_locations and decision_vars.timestamps.
         // We just need to transfer them into the readings list.
-        std::vector<OrbitalCameraReading>::iterator reading_it = readings.begin();
-        for (int i = 0;
-             reading_it != readings.end();
-             ++reading_it, ++i)
+        dest.setControlNetwork(obs.getControlNetwork());
+        dest.setExpectedReadingCount(readings.size());
+        for( std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
+            it != readings.end();
+            it++ )
         {
-          reading_it->mTime = decision_vars.timestamps[i];
-          reading_it->mCoord = estimated_locations[i];
+        //    dest.addReading(new OrbitalCameraReading());
         }
 
         // Next, denormalize times
-        obs.denormalizeReadingTimes();
+        dest.denormalizeReadingTimes();
+
+        return true;
     }
 
 }} // vw::ORBA

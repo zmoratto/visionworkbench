@@ -17,6 +17,8 @@
 #include <fstream>
 #include <list>
 
+#include "ObservationSet.hpp"
+
 using namespace std;
 using namespace vw::camera;
 using namespace vw::ORBA;
@@ -44,6 +46,16 @@ int main(int argc, char** argv)
   std::vector<std::string> camera_names;
   std::string file_name;
 
+  // Check that sigmas have been passed in
+  if (argc < 4)
+  {
+      cout << "USAGE: orba_utility <projection variance> <registration variance> <satellite variance> <timing variance>" << endl;
+      return 1;
+  }
+
+  
+  double sigma_t = atof(argv[3]);
+
 // Load the pinhole models
   boost::filesystem::path my_path("/a15_rev033/");
     // default construction yields past-the-end
@@ -58,6 +70,7 @@ int main(int argc, char** argv)
   }
 
   ObservationSet observations;
+  ObservationSet dest;
   observations.setExpectedReadingCount(camera_names.size());
 
   std::vector<boost::shared_ptr<PinholeModel> > cameras;
@@ -78,8 +91,19 @@ int main(int argc, char** argv)
   boost::shared_ptr<ControlNetwork> network( new ControlNetwork("a15_rev033") );
   network->read_binary( cnet_filename );
 
-  // Preferably, we should sort the observations by time before passing into
-  // the refiner
+  // Now set the control network in the observation set
+  observations.setControlNetwork(network);
+
+  // Sort the observations by time before passing into the refiner
+  observations.getReadings().sort(OrbitalReading::TimestampLess());
+
+
+  // ***
+  // are the sigmas being passed in by command line? what format? some of the
+  // sigmas are represented as vectors...
+  // ***
+  ORBARefiner refiner;
+  refiner.refineORBAReadings(observations, dest);
 
 #if 0
     // This logic should be encapsulated in the ORBARefiner, not here in the
