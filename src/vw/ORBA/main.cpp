@@ -44,7 +44,7 @@ void write_results (std::string file, std::vector<OrbitalCameraReading> data)
   output.close();
 }
 
-void read_input (std::string filename, std::vector<std::string>& camera_names,
+bool read_input (std::string filename, std::vector<std::string>& camera_names,
                  std::vector<OrbitalReading::timestamp_t>& times)
 {
   std::string entry_id_string, time_string;
@@ -66,9 +66,6 @@ void read_input (std::string filename, std::vector<std::string>& camera_names,
     line.clear();
     line.str(line_buffer);
 
-    // The dummy char 'c' reads the comma characters.
-    char c;
-
     // Read the next line of data
     std::getline(line, entry_id_string, ',');
     std::getline(line, time_string, ',');
@@ -79,12 +76,13 @@ void read_input (std::string filename, std::vector<std::string>& camera_names,
     camera_names.push_back(entry_id_string);
 
     // Not sure of the logic here?
-    double time = atof(time_string);
+    double time = atof(time_string.c_str());
     time_t ts = static_cast<time_t>(time);
     OrbitalReading::timestamp_t result = ts;
 
     times.push_back(result);
   }
+  return true;
 }
 
 /*

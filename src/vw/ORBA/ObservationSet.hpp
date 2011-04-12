@@ -73,7 +73,7 @@ public:
     }
   }
 
-  void denormalizeTimes()
+  void denormalizeReadingTimes()
   {
     if (mBaseTime == 0)
       return;
