@@ -50,22 +50,32 @@ private:
   
   double ProjectionError(const domain_type& x) const;
   
-  double RegistrationError(
-      const std::vector<Vector3>& BA,
-      const std::vector<Vector3>& OR,
-      const std::vector<Matrix3x3>& r,
+  double pointIndependentRegistrationError(
+      std::size_t point_count, 
+      const Vector3& precisionR) const;
+
+  double getSinglePointRegistrationError(
+      const Vector3& BA,
+      const Vector3& OR,
+      const Matrix3x3& r,
       const Vector3& precisionR) const;
   
-  double SatelliteError(const std::vector<Vector3>& AP,
-                        const std::vector<Vector3>& OR,
-                        const std::vector<Matrix3x3>& r,
-                        const std::vector<double>& w,
-                        const Vector3& precisionS) const;
+  double pointIndependentSatelliteError(const std::vector<double>& weights,
+                                        const Vector3& precisionS) const;
 
-  double TimingError(const std::vector<double>& timeValues,
-                     const std::vector<double>& timeEstimates,
-                     double timeVariance,
-                     const std::vector<double>& timeWeights) const;
+  double getSinglePointSatelliteError(const Vector3& original_reading,
+                                      const Vector3& OR_refined,
+                                      const Matrix3x3& r,
+                                      const double& weight,
+                                      const Vector3& precisionS) const;
+  
+  double pointIndependentTimingError(const std::vector<double>& timeWeights,
+                                     double timeVariance) const;
+
+  double getSinglePointTimingError(OrbitalReading::timestamp_t observed_time,
+                                   OrbitalReading::timestamp_t estimated_time,
+                                   const double& timeVariance,
+                                   const double& weight) const;
 
   double calculateGradient(double& to_tweak,
                            double tweak_scaling,

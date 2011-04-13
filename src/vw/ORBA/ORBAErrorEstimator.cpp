@@ -34,35 +34,26 @@ ORBAErrorEstimator::operator()(const ORBAErrorEstimator::domain_type& x) const
 double ORBAErrorEstimator::TrajectoryDependentErrors(
     const ORBAErrorEstimator::domain_type& x) const
 {
-// These are temporary!!! Until we unroll the error calculations
-  std::vector<Vector3> p;
-  std::vector<Vector3> q;
-  std::vector<Matrix3x3> r;
-  std::vector<Vector3> s;
-  std::vector<double> t_calculated;
-  std::vector<double> t_observed;
-  Vector<double> w;
-  
   double error = 0;
 
     // Prepare an appropriate trajectory calculator
-  GravityAccelerationFunctor gravity(x.trajectory.GM);
+  GravityAccelerationFunctor gravity(x.GM);
   TrajectoryCalculator traj_calc(gravity);
 
     // There needs to be one observation per timestamp
-  assert(x.trajectory.timestamps.size() == mObservations->getReadings().size());
+  assert(x.timestamps.size() == mObservations->getReadings().size());
 
     // Prepare to calculate the rest of the errors
-  Vector3 prev_position = x.trajectory.p0;
-  Vector3 prev_velocity = x.trajectory.v0;
-  OrbitalReading::timestamp_t prev_t = x.trajectory.timestamps[0];
+  Vector3 prev_position = x.p0;
+  Vector3 prev_velocity = x.v0;
+  OrbitalReading::timestamp_t prev_t = x.timestamps[0];
   Vector3 next_position;
   Vector3 next_velocity;
 
     // Loop through each reading, calculate each error component
     // Keep a loop counter in sync too, for fast access to readings
   std::size_t i = 0;
-  BOOST_FOREACH(OrbitalReading::timestamp_t time, x.trajectory.timestamps)
+  BOOST_FOREACH(OrbitalReading::timestamp_t time, x.timestamps)
   {
       // get the observed coordinates and time
     const OrbitalCameraReading& observation = mObservations->getReading(i);
@@ -72,21 +63,19 @@ double ORBAErrorEstimator::TrajectoryDependentErrors(
                                  time - prev_t,
                                  next_position, next_velocity);
 
-      // this is temporary!!!
-      // For now, store the OR-calculated position and velocity, then calculate
-      // errors after we have all the data.  Later, we'll calculate the error for
-      // a single point right here and NOT save the p and v.
-    s.push_back(next_position);
-    r.push_back(CalculateR(next_position, next_velocity));
-      // One of the following two is wrong...it should be
-      // the time as estimated by BA.  Replace with the following:
-      // whichever.push_back(x.pj[i] + observation.mCamera.position());
-    p.push_back(observation.mCoord);
-    q.push_back(observation.mCoord);
-      // Need to get weights...
-//    w.push_back();
-    t_calculated.push_back((double)(time) / 1000);
-    t_observed.push_back((double)(observation.mTime) / 1000);
+      // Get the BA-calculated coordinates
+    Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
+    
+      // Calculate R
+    Matrix3x3 r = CalculateR(next_position, next_velocity);
+
+      // Calculate the error components
+    error += getSinglePointSatelliteError(observation.mCoord, next_position,
+                                          r, mWeights[i], x.precision_s);
+    error += getSinglePointRegistrationError(ba_coord, next_position,
+                                        r, x.precision_r);
+    error += getSinglePointTimingError(observation.mTime, time,
+                                       x.precision_t, mWeights[i]);
 
       // Get ready for next point
     prev_position = next_position;
@@ -95,11 +84,11 @@ double ORBAErrorEstimator::TrajectoryDependentErrors(
     i++;
   }
 
-    // this is temporary!!!
-  error += SatelliteError(q, s, r, mWeights, x.precision_s)
-      + RegistrationError(p, s, r, x.precision_r)
-      + TimingError(t_observed, t_calculated, 1/x.precision_t, mWeights);
-  
+    // Now add in the point-independent error components
+  error += pointIndependentSatelliteError(mWeights, x.precision_s)
+      + pointIndependentRegistrationError(mWeights.size(), x.precision_r)
+      + pointIndependentTimingError(mWeights, 1/x.precision_t);
+
   return error;
 }
     
@@ -210,142 +199,145 @@ double ORBAErrorEstimator::ProjectionError(
 
 
 /*
- * Registration Error
+ * Point-Independent Registration Error
  * 
  * In:
- * vector<Vector3>& p  : Original Apollo readings
- * vector<Vector3>& s  : Orbital Refined positions
- * vector<Matrix3x3> r : Calculated Radial coordinates from Camera positions.
- *                       This should be calculated separately as part of an
- *                       initialization routine.
- * Vector3 precisionsR : Calculated Precision from ORBA
+ *  std::size_t point_count: Number of points in the orbit.
+ *  Vector3 precisionsR : Calculated Precision from ORBA
  *
- * TODO make things const, maybe pass w by reference
- *      optimize?
 */
-double ORBAErrorEstimator::RegistrationError(const std::vector<Vector3>& p, 
-                                             const std::vector<Vector3>& s,
-                                             const std::vector<Matrix3x3>& r,
-                                             const Vector3& precisionR) const
+double ORBAErrorEstimator::pointIndependentRegistrationError(
+    std::size_t point_count, 
+    const Vector3& precisionR) const
 {
-   Vector3 d, t; //d and t are temp vectors for math
-   double error = 0;
-   for(std::size_t i = 0; i < p.size(); i++)
-   {
-      t[0] = p[i][0] - s[i][0];
-      t[1] = p[i][1] - s[i][1];
-      t[2] = p[i][2] - s[i][2];
-
-      d[0] = t[0] * r[i](0,0) + t[1] * r[i](0,1) + t[2] * r[i](0,2);
-      d[1] = t[0] * r[i](1,0) + t[1] * r[i](1,1) + t[2] * r[i](1,2);
-      d[2] = t[0] * r[i](2,0) + t[1] * r[i](2,1) + t[2] * r[i](2,2);
-
-      t[0] = d[0] * ( 1.0 / precisionR[0]);
-      t[1] = d[1] * ( 1.0 / precisionR[1]);
-      t[2] = d[2] * ( 1.0 / precisionR[2]);
-
-      error += t[0] * d[0] + t[1] * d[1] + t[2] * d[2];
-   }
-
-   // Also check indices...
-   error -= p.size() * log( precisionR[0] * precisionR[1] * precisionR[2]);
-   return error;                                 
+   return  -point_count * log( precisionR[0] * precisionR[1] * precisionR[2]);
 }
 
 /*
- * Satellite Error
+ * Registration Error for a single reading
  * 
  * In:
- * vector<Vector3>& q  : Original Apollo readings
- * vector<Vector3>& s  : Orbital Refined positions
- * vector<Matrix3x3> r : Calculated Radial coordinates from Camera positions.
- *                       This should be calculated separately as part of an
- *                       initialization routine.
- * Vector<double> w    : Weights of each position from Orbital Refinement
- * Vector3 precisionsS : Calculated Precision from ORBA
+ * Vector3& p   : Original Apollo reading (or is this supposed to be BA?)
+ * Vector3& s   : Orbital Refined position
+ * Matrix3x3& r : Calculated Radial coordinates from Camera positions.
+ * Vector3& precisionsR : Calculated Precision from ORBA
  *
- * TODO make things const, maybe pass w by reference
- *      optimize?
 */
-double ORBAErrorEstimator::SatelliteError(const std::vector<Vector3>& q,
-                                          const std::vector<Vector3>& s,
-                                          const std::vector<Matrix3x3>& r,
-                                          const std::vector<double>& w,
-                                          const Vector3& precisionS) const
+double ORBAErrorEstimator::getSinglePointRegistrationError(
+    const Vector3& p, 
+    const Vector3& s,
+    const Matrix3x3& r,
+    const Vector3& precisionR) const
 {
-   Vector3 d, t; //temp vectors for math. T is for temp. D is for . . .temp.
-   double error = 0;
-   for(std::size_t i = 0; i < q.size(); i++)
-   {
-      //t is the delta between original reading/OR values
-      t[0] = q[i][0] - s[i][0];
-      t[1] = q[i][1] - s[i][1];
-      t[2] = q[i][2] - s[i][2];
+  Vector3 d = r*(p-s);
+  Vector3 t = elem_quot(d, precisionR);
 
-      //This is R * t, ej in Taemin's equation
-      d[0] = t[0] * r[i](0,0) + t[1] * r[i](0,1) + t[2] * r[i](0,2);
-      d[1] = t[0] * r[i](1,0) + t[1] * r[i](1,1) + t[2] * r[i](1,2);
-      d[2] = t[0] * r[i](2,0) + t[1] * r[i](2,1) + t[2] * r[i](2,2);
+  return dot_prod(t, d);
+}
 
-      //t is now transpose e * inverse variance
-      t[0] = d[0] * ( 1.0 / precisionS[0]);
-      t[1] = d[1] * ( 1.0 / precisionS[1]);
-      t[2] = d[2] * ( 1.0 / precisionS[2]);
 
-      //adding the previous value with 
-      error += (t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) * w[i];
-   }
-
+/*
+ * Point-Independent Satellite Error.
+ * The portion of the error that doesn't change when
+ * a point's location changes
+ * 
+ * In:
+ *   const std::vector<double>& w: Weights for each point
+ *   const Vector3& precisionS: Satellite precision
+ *
+*/
+double ORBAErrorEstimator::pointIndependentSatelliteError(
+    const std::vector<double>& w,
+    const Vector3& precisionS) const
+{
    //This is the log of the inverse precision
-   error -= q.size() * std::accumulate(w.begin(), w.end(), 0) * log( precisionS[0] * precisionS[1] * precisionS[2] );
-   return error;
+  return -w.size()
+      * std::accumulate(w.begin(), w.end(), 0) // sum of weights
+      * log( precisionS[0] * precisionS[1] * precisionS[2] );
+}
+
+/*
+ * Satellite Error for a single point
+ * 
+ * In:
+ * Vector3& q  : Original Apollo reading
+ * Vector3& s  : Orbital Refined position
+ * Matrix3x3 r : Calculated Radial coordinates from Camera positions.
+ * double& w   : Weight of position from Orbital Refinement
+ * Vector3& precisionsS : Calculated Precision from ORBA
+ *
+*/
+double ORBAErrorEstimator::getSinglePointSatelliteError(
+    const Vector3& q,
+    const Vector3& s,
+    const Matrix3x3& r,
+    const double& w,
+    const Vector3& precisionS) const
+{
+    //This is ej in Taemin's equation
+  Vector3 d = r * (q - s);
+  
+    //t is now transpose e * inverse variance
+  Vector3 t = elem_quot(d, precisionS);
+  
+  return w * dot_prod(t, d);
 }
 
 
 /*
- * TimingError
+ * Point-Independent TimingError
  *
- * Vector<double>& timeValues    : original time values
- * Vector<double>& timeEstimates : OR time values
  * double timeVariance           : variance from BA
  * Vector<double>& timeWeights   : weights for each point
  *
- * TODO Check if the weight is for the point or just the time component
- * of the weight.
+ * TODO Switch from variance to precision so it's consistent with the
+ *      other elements and with how it's stored in the decision variable.
+ */
+double ORBAErrorEstimator::pointIndependentTimingError(
+    const std::vector<double>& timeWeights,
+    double timeVariance) const
+{
+  double weightSum = std::accumulate(timeWeights.begin(), timeWeights.end(), 0);
+  
+    //square variance
+  double sigma2 = timeVariance * timeVariance;
+  
+    //weight sum * ln (varaince squared)
+  return weightSum * (log (sigma2));
+}
+
+/*
+ * Timing Error for a single point
+ *
+ * double observed_time  : original time value
+ * double estimated_time : OR-calculated time value
+ * double timeVariance   : variance value
+ * double weight         : weight for point
  *
  * TODO Deal with times using milliseconds instead of doubles.
  *
  * TODO Switch from variance to precision so it's consistent with the
  *      other elements and with how it's stored in the decision variable.
  */
-double ORBAErrorEstimator::TimingError(const std::vector<double>& timeValues,
-                                       const std::vector<double>& timeEstimates,
-                                       double timeVariance,
-                                       const std::vector<double>& timeWeights) const
+double ORBAErrorEstimator::getSinglePointTimingError(
+    OrbitalReading::timestamp_t observed_time,
+    OrbitalReading::timestamp_t estimated_time,
+    const double& time_variance,
+    const double& weight) const
 {
-   double diff = 0;
-   //Sum weights
-   double weightSum = 0;
-   for(std::size_t i = 0; i < timeWeights.size(); i++)
-   {
-      weightSum += timeWeights[i];
-   }
-
-   //square variance
-   double sigma2 = timeVariance * timeVariance;
-
-   //weight sum * ln (varaince squared)
-   double error = weightSum * (log (sigma2));
-
-   //sum of -
-   // weight(j) * (Real time - estimate time)^2 / var^2
-   for(std::size_t i = 0; i < timeValues.size(); i++)
-   {
-      diff +=( (timeValues[i] - timeEstimates[i])* (timeValues[i] - timeEstimates[i]) * timeWeights[i] ) / sigma2;
-   }
-
-   return error + diff;
+    // Because times are unsigned, we want to subtract the
+    // bigger from the smaller time
+  double time_diff = 0;
+  if (observed_time > estimated_time)
+    time_diff = observed_time - estimated_time;
+  else
+    time_diff = estimated_time - observed_time;
+    // Convert to seconds
+  time_diff /= 1000;
+  
+  return time_diff * time_diff * weight / (time_variance*time_variance);
 }
+
 
 ORBAGradientSet ORBAErrorEstimator::gradient(
     const ORBADecisionVariableSet& x_in ) const
