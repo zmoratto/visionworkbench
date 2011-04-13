@@ -149,20 +149,17 @@ namespace
             weight_calc.calculateWeights(readings, estimated_locations, weights);
         }
 
-        // ***
-        // Need to decide how we actually want to return everything
-        // ***
         // Place the adjusted times and coordinates into the passed in observation set.
         // They are already in estimated_locations and decision_vars.timestamps.
         // We just need to transfer them into the readings list.
 
         dest.setControlNetwork(obs.getControlNetwork());
         dest.setExpectedReadingCount(readings.size());
-        for( std::vector<OrbitalCameraReading>::const_iterator it = readings.begin();
-            it != readings.end();
-            it++ )
+
+        // Do we need to copy anything else over?
+        for (int i = 0; i < obs.getReadings().size(); i++)
         {
-        //    dest.addReading(new OrbitalCameraReading());
+            dest.addReading(obs.getReading(i));
         }
 
         // Next, denormalize times

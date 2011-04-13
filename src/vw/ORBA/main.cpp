@@ -122,21 +122,6 @@ int main(int argc, char** argv)
     return 1;
   }
 
-
-/*
-// Load the pinhole models
-  boost::filesystem::path my_path("/a15_rev033/");
-    // default construction yields past-the-end
-  boost::filesystem::directory_iterator end_itr;
-  for ( boost::filesystem::directory_iterator itr( my_path );
-        itr != end_itr;
-        ++itr )
-  {
-    file_name = itr->leaf().substr(itr->leaf().find_last_of(".") + 1);
-    if(file_name == "pinhole")
-      camera_names.push_back(itr->leaf());
-  }*/
-
   read_input(file_name, camera_names, times);
 
   ObservationSet observations;
