@@ -9,6 +9,7 @@
 #include <vw/ORBA/ObservationSet.hpp>
 #include <vw/ORBA/ORBARefiner.hpp>
 #include <vw/BundleAdjustment/ControlNetwork.h>
+#include <vw/math/Quaternion.h>
 
 #include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>
@@ -19,6 +20,7 @@
 #include <list>
 
 #include "ObservationSet.hpp"
+#include "OrbitalCameraReading.hpp"
 
 using namespace std;
 using namespace vw::camera;
@@ -33,11 +35,20 @@ void write_results (std::string file, std::vector<OrbitalCameraReading> data)
        it != data.end();
        it++)
   {
-    output << it->mId << "," 
+    // Normalize the quaternion
+    Quaternion norm = it->mCamera->camera_pose().normalize();
+
+    output << it->mId << ","
+           // camera coordinates
            << it->mCoord[0] << ","
            << it->mCoord[1] << ","
            << it->mCoord[2] << ","
-           << it->mCamera->camera_pose() << ","
+           // camera orientation, normalized
+           << norm[0] << ","
+           << norm[1] << ","
+           << norm[2] << ","
+           << norm[3] << ","
+           // timestamp
            << it->mTime << "\n";
   }
   
