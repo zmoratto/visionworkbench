@@ -153,6 +153,10 @@ double ORBAErrorEstimator::ProjectionError(
   {
     error += getControlPointError(cp, x);
   }
+
+    // Add in the point-independent projection error
+  error += x.cnet->size()*prod(x.precision_p);
+  
   return error;
 }
 
@@ -197,7 +201,8 @@ double ORBAErrorEstimator::pointIndependentRegistrationError(
     std::size_t point_count, 
     const Vector3& precisionR) const
 {
-   return  -point_count * log( precisionR[0] * precisionR[1] * precisionR[2]);
+    // the minus is in lieu of inverting precision into covariance
+  return  -point_count * log(prod(precisionR));
 }
 
 /*
@@ -217,7 +222,7 @@ double ORBAErrorEstimator::getSinglePointRegistrationError(
     const Vector3& precisionR) const
 {
   Vector3 d = r*(p-s);
-  Vector3 t = elem_quot(d, precisionR);
+  Vector3 t = elem_prod(d, precisionR);
 
   return dot_prod(t, d);
 }
@@ -238,9 +243,8 @@ double ORBAErrorEstimator::pointIndependentSatelliteError(
     const Vector3& precisionS) const
 {
    //This is the log of the inverse precision
-  return -w.size()
-      * std::accumulate(w.begin(), w.end(), 0) // sum of weights
-      * log( precisionS[0] * precisionS[1] * precisionS[2] );
+  return std::accumulate(w.begin(), w.end(), 0) // sum of weights
+      * -log( prod(precisionS) );
 }
 
 /*
@@ -265,7 +269,7 @@ double ORBAErrorEstimator::getSinglePointSatelliteError(
   Vector3 d = r * (q - s);
   
     //t is now transpose e * inverse variance
-  Vector3 t = elem_quot(d, precisionS);
+  Vector3 t = elem_prod(d, precisionS);
   
   return w * dot_prod(t, d);
 }
@@ -286,11 +290,8 @@ double ORBAErrorEstimator::pointIndependentTimingError(
 {
   double weightSum = std::accumulate(timeWeights.begin(), timeWeights.end(), 0);
   
-    //square variance
-  double sigma2 = timeVariance * timeVariance;
-  
-    //weight sum * ln (varaince squared)
-  return weightSum * (log (sigma2));
+    //weight sum * ln (1/variance)
+  return weightSum * -log(timeVariance);
 }
 
 /*
@@ -319,10 +320,11 @@ double ORBAErrorEstimator::getSinglePointTimingError(
     time_diff = observed_time - estimated_time;
   else
     time_diff = estimated_time - observed_time;
+  
     // Convert to seconds
   time_diff /= 1000;
   
-  return time_diff * time_diff * weight / (time_variance*time_variance);
+  return time_diff * time_diff * weight * time_variance;
 }
 
 
