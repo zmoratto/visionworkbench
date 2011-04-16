@@ -163,9 +163,9 @@ int main(int argc, char** argv)
   observations.setControlNetwork(network);
 
   // Setup the variances to pass into refiner
-  const Vector2 sigma_p(var_p);
-  const Vector3 sigma_r(var_r);
-  const Vector3 sigma_s(var_s);
+  const Vector2 sigma_p(var_p, var_p);
+  const Vector3 sigma_r(var_r, var_r, var_r);
+  const Vector3 sigma_s(var_s, var_s, var_s);
   const double sigma_t = var_t;
 
   ORBARefiner refiner;
