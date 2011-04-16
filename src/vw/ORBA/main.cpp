@@ -27,6 +27,33 @@ using namespace vw::camera;
 using namespace vw::ORBA;
 using namespace vw::ba;
 
+// This ought to be put somewhere where it can be used in other contexts.
+std::string time_to_string(OrbitalReading::timestamp_t time)
+{
+    char buffer[256];
+
+    // Get the milliseconds, then convert to seconds
+    int milliseconds = time%1000;
+    time_t temp_time = time/1000;
+
+    // Convert to a struct tm in UTC
+    struct tm* t = localtime(&temp_time);
+
+    int year = t->tm_year + 1900;
+    int month = t->tm_mon + 1;
+    int day = t->tm_mday;
+    int hour = t->tm_hour;
+    int min = t->tm_min;
+    int secs = t->tm_sec;
+
+    sprintf(buffer, "%.4u-%.2u-%.2uT%.2u:%.2u:%.2u.%.3u",
+            year, month, day, hour, min, secs, milliseconds);
+
+    std::string str = buffer;
+
+    return str;
+}
+
 void write_results (std::string file, std::vector<OrbitalCameraReading> data)
 {
     // Do something nice to convert to CSV
@@ -37,19 +64,20 @@ void write_results (std::string file, std::vector<OrbitalCameraReading> data)
   {
     // Normalize the quaternion
     Quaternion<double> norm = normalize(it->mCamera->camera_pose());
+    Vector3 coord = it->mCamera->camera_center();
 
     output << it->mId << ","
+           // timestamp
+           << time_to_string(it->mTime) << ","
            // camera coordinates
-           << it->mCoord[0] << ","
-           << it->mCoord[1] << ","
-           << it->mCoord[2] << ","
+           << coord[0] << ","
+           << coord[1] << ","
+           << coord[2] << ","
            // camera orientation, normalized
            << norm[0] << ","
            << norm[1] << ","
            << norm[2] << ","
-           << norm[3] << ","
-           // timestamp
-           << it->mTime << "\n";
+           << norm[3] << "\n";
   }
   
   output.close();
