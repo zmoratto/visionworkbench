@@ -114,10 +114,6 @@ namespace
 
             prev_error = error_func(decision_vars);
               // Minimize the weighted error
-              // ***
-              // Commented out temporarily so we can focus on local
-              // errors first
-              // ***
             decision_vars = conjugate_gradient(error_func, decision_vars,
                                                ArmijoStepSize(), MAX_CG_ITERATIONS);
 
@@ -137,10 +133,6 @@ namespace
               break;
             }
 
-              // *** Question:  Do we calculate weights as part of ORBA, or
-              // do we simply continue to use the final weights from our OR-only pass?
-              // ***
-
               // If we're not done, calculate another set of weights, using the latest
               // location estimates.
             gravity.setGM(decision_vars.GM);
@@ -157,7 +149,7 @@ namespace
         dest.setExpectedReadingCount(readings.size());
 
         // Do we need to copy anything else over?
-        for (int i = 0; i < obs.getReadings().size(); i++)
+        for (std::size_t i = 0; i < obs.getReadings().size(); i++)
         {
             dest.addReading(obs.getReading(i));
         }
