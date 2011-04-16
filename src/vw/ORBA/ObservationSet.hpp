@@ -11,7 +11,7 @@ using namespace vw;
 using namespace vw::ba;
         
 // This is a structure in which to store our observations.
-// It boils down to a std::vector<OrbitalCameraObservation>
+// It boils down to a std::vector<OrbitalCameraReading>
 // and a ControlNetwork.
 class ObservationSet
 {
@@ -87,6 +87,11 @@ public:
     mBaseTime = 0;
   }
   
+  OrbitalReading::timestamp_t getTimeNormalizationBase() const
+  { return mBaseTime; }
+
+  void setTimeNormalizationBase(OrbitalReading::timestamp_t base)
+  { mBaseTime = base; }
   
 private:
 
@@ -98,7 +103,7 @@ private:
     // that has been subtracted from each time.
   OrbitalReading::timestamp_t mBaseTime;
 };
-        
+
 } }
 
 #endif

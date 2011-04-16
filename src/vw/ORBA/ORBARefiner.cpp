@@ -89,15 +89,11 @@ namespace
         std::vector<double>& weights = orRefiner.getInlierWeights();
         std::vector<Vector3> estimated_locations(readings.size());
 
-        // Calculate an initial set of locations
+        // Create calculator/helper objects
         GravityAccelerationFunctor gravity(decision_vars.GM);
         TrajectoryCalculator traj_calc(gravity);
-
-        // Calculate an initial set of weights
         WeightCalculator weight_calc;
-
-        ORBAErrorEstimator error_func(boost::shared_ptr<ObservationSet>(&obs),
-                                      orRefiner.getInlierWeights());
+        ORBAErrorEstimator error_func(boost::shared_ptr<ObservationSet>(&obs), weights);
 
         // We start each iteration through the loop with a guess for our decision variables,
         // plus a set of weights for each point based on the previous guess.
@@ -117,6 +113,14 @@ namespace
             decision_vars = conjugate_gradient(error_func, decision_vars,
                                                ArmijoStepSize(), MAX_CG_ITERATIONS);
 
+
+              // Store the calculated locations.
+              // We do this even if this is the final iteration, as the locations will stored
+              // in the output.
+            gravity.setGM(decision_vars.GM);
+            traj_calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
+                                         decision_vars.timestamps, estimated_locations);
+            
             double this_error = error_func(decision_vars);
             double delta = prev_error - this_error;
 
@@ -132,29 +136,45 @@ namespace
             {
               break;
             }
-
-              // If we're not done, calculate another set of weights, using the latest
-              // location estimates.
-            gravity.setGM(decision_vars.GM);
-            traj_calc.calculateAllPoints(decision_vars.p0, decision_vars.v0,
-                                         decision_vars.timestamps, estimated_locations);
+            
+              // Calculate weights to be used in next iteration, using the latest location estimates.
             weight_calc.calculateWeights(readings, estimated_locations, weights);
         }
 
-        // Place the adjusted times and coordinates into the passed in observation set.
-        // They are already in estimated_locations and decision_vars.timestamps.
-        // We just need to transfer them into the readings list.
-
+        // Place the adjusted times, coordinates, and camera orientations
+        // into the passed in observation set. Here's where we get our data:
+        // * Changes to ControlPoint locations are already stored in the ControlNetwork;
+        //   they were modified directly during optimization.
+        // * The times are stored as decision variables
+        // * OR-calculated coords are stored in estimated_locations.
+        // * Camera coords are stored as decision variables, as offsets from our observations.
+        // * Camera orientations are stored as decision variables, also as offsets.
+        //
+        // Here's where that data will be stored:
+        // * ControlPoint locations are stored in dest's ControlNetwork
+        // * Camera position and orientation are stored in each reading's camera object
+        // * OR time and position are stored in the reading outside of the camera
         dest.setControlNetwork(obs.getControlNetwork());
         dest.setExpectedReadingCount(readings.size());
-
-        // Do we need to copy anything else over?
         for (std::size_t i = 0; i < obs.getReadings().size(); i++)
         {
-            dest.addReading(obs.getReading(i));
+            // Create the reading, store original data and revised time.
+          OrbitalCameraReading reading(obs.getReading(i).mId, decision_vars.timestamps[i],
+                                       obs.getReading(i).mCamera);
+            // Add the camera offsets
+          AdjustedCameraModel adj_cam(reading.mCamera, decision_vars.pj[i],
+                                      Quaternion<double>(decision_vars.cj_second[i]));
+          reading.mCamera->set_camera_center(adj_cam.camera_center(Vector2(0,0)));
+          reading.mCamera->set_camera_pose(adj_cam.camera_pose(Vector2(0,0)));
+
+            // Store the OR-calculated location
+          reading.mCoord = estimated_locations[i];
+          
+          dest.addReading(reading);
         }
 
-        // Next, denormalize times
+        // Denormalize times
+        dest.setTimeNormalizationBase(obs.getTimeNormalizationBase());
         dest.denormalizeReadingTimes();
 
         return true;
