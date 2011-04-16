@@ -1,7 +1,6 @@
 #include <vw/ORBA/ORBAErrorEstimator.hpp>
 #include <vw/Camera/CameraModel.h>
 #include <vw/orbital_refinement/GravityAccelerationFunctor.hpp>
-#include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 
 #include <boost/foreach.hpp>
 #include <cmath>
@@ -55,28 +54,11 @@ double ORBAErrorEstimator::TrajectoryDependentErrors(
   std::size_t i = 0;
   BOOST_FOREACH(OrbitalReading::timestamp_t time, x.timestamps)
   {
-      // get the observed coordinates and time
-    const OrbitalCameraReading& observation = mObservations->getReading(i);
+    error += getSingleTimestampError(i, x, traj_calc,
+                                     prev_position, next_position,
+                                     prev_velocity, next_velocity,
+                                     prev_t, time);
     
-      // Get the OR-calculated coordinates and velocity
-    traj_calc.calculateNextPoint(prev_position, prev_velocity,
-                                 time - prev_t,
-                                 next_position, next_velocity);
-
-      // Get the BA-calculated coordinates
-    Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
-    
-      // Calculate R
-    Matrix3x3 r = CalculateR(next_position, next_velocity);
-
-      // Calculate the error components
-    error += getSinglePointSatelliteError(observation.mCoord, next_position,
-                                          r, mWeights[i], x.precision_s);
-    error += getSinglePointRegistrationError(ba_coord, next_position,
-                                        r, x.precision_r);
-    error += getSinglePointTimingError(observation.mTime, time,
-                                       x.precision_t, mWeights[i]);
-
       // Get ready for next point
     prev_position = next_position;
     prev_velocity = next_velocity;
@@ -169,30 +151,35 @@ double ORBAErrorEstimator::ProjectionError(
   double error = 0;
   BOOST_FOREACH(const ControlPoint& cp, *x.cnet)
   {
-      // Get the estimated location of this control point, as stored
-      // in the control network. This is a decision variable.
-    Vector3 b = cp.position();
-    
-      // Loop through each measure in the control point
-    BOOST_FOREACH(const ControlMeasure& cm, cp)
-    {
-        // To do:  We need an ORBAModel to store our observations.
-        // We need to get the camera from this model.
-      
-        // Get the camera parameters for this camera
-      const Vector3& a_location = x.pj[cm.image_id()];
-      const Vector4& a_rotation = x.cj_second[cm.image_id()];
-      
-        // cm.position() is the pixel location of cp in this image.
-        // It never changes.  We compare this actual pixel location
-        // against the expected pixel location of world-space coordinate b.
+    error += getControlPointError(cp, x);
+  }
+  return error;
+}
 
-      AdjustedCameraModel adj_cam(mObservations->getCamera(cm.image_id()),
-                                  a_location,
-                                  math::Quaternion<double>(a_rotation));
-      Vector2 delta = elem_diff(cm.position(), adj_cam.point_to_pixel(b));
-      error += sum(elem_prod(elem_prod(delta, delta),  x.precision_p));
-    }
+double ORBAErrorEstimator::getControlPointError(
+    const ControlPoint& cp,
+    const ORBADecisionVariableSet& x) const
+{
+  double error = 0;
+  
+    // Get the estimated location of this control point, as stored
+    // in the control network. This is a decision variable.
+  Vector3 b = cp.position();
+  
+  BOOST_FOREACH(const ControlMeasure& cm, cp)
+  {
+      // Get the camera parameters for this camera
+    const Vector3& a_location = x.pj[cm.image_id()];
+    const Vector4& a_rotation = x.cj_second[cm.image_id()];
+    
+      // cm.position() is the pixel location of cp in this image.
+      // It never changes.  We compare this actual pixel location
+      // against the expected pixel location of world-space coordinate b.
+    AdjustedCameraModel adj_cam(mObservations->getCamera(cm.image_id()),
+                                a_location,
+                                math::Quaternion<double>(a_rotation));
+    Vector2 delta = elem_diff(cm.position(), adj_cam.point_to_pixel(b));
+    error += sum(elem_prod(elem_prod(delta, delta),  x.precision_p));
   }
   return error;
 }
@@ -342,102 +329,103 @@ double ORBAErrorEstimator::getSinglePointTimingError(
 ORBAGradientSet ORBAErrorEstimator::gradient(
     const ORBADecisionVariableSet& x_in ) const
 {
-    // Get the error right @ x
-  double cur_error = operator()(x_in);
-
     // Create a gradient set to pass back
   ORBAGradientSet gradient(x_in);
 
     // Create a mutable copy of x
   ORBADecisionVariableSet x = x_in;
 
-    // Get a forward gradient for all the elements of x, one at a time
-  gradient.GM = calculateGradient(x.GM, 1e-7, x, cur_error);
+    // We'll be calculating a forward gradient for each
+    // element of x, one at a time
+
+    // Start with those that affect all trajectory-related gradients
+  double traj_error = TrajectoryDependentErrors(x);
+  
+  gradient.GM = calculateTrajectoryGradient(x.GM, 1e-7, x, traj_error);
   for (int i = 0; i < 3; ++i)
   {
-    gradient.p0[i] = calculateGradient(x.p0[i], 1e-7, x, cur_error);
-    gradient.v0[i] = calculateGradient(x.v0[i], 1e-7, x, cur_error);
+    gradient.p0[i] = calculateTrajectoryGradient(x.p0[i], 1e-7, x, traj_error);
+    gradient.v0[i] = calculateTrajectoryGradient(x.v0[i], 1e-7, x, traj_error);
   }
 
-    // Optimization idea, only recalculate the portion of the error relevant
-    // to each timestamp.
-  for (std::size_t i = 0; i < x.timestamps.size(); i++)
-  {
-      // Because times are fixed precision, we use a fixed epsilon.
-      // Put gradient calculation right here instead of calling the
-      // function used for other variables.
-    const OrbitalReading::timestamp_t eps = 2; // Fixed epsilon of 2 ms.
-    x.timestamps[i] += eps;
-    double error_new = operator()(x);
-    gradient.t[i] = (error_new - cur_error) / (eps);
-    x.timestamps[i] -= eps;
-  }
-
+    // Now calculate gradients for each reading's timestamp.
+    // For efficiency, we also calculate most of the precision gradients
+    // at the same time.
+  Vector3 precision_r_gradient;
+  Vector3 precision_s_gradient;
+  double precision_t_gradient;
+  calculateTimeGradients(x, gradient, precision_r_gradient,
+                         precision_s_gradient, precision_t_gradient);
+  
     // The rest of the gradients go in x_k.
     // We'll keep a running index
   std::size_t i_x_k = 0;
 
-    // Gradients for landmark locations
+    // Gradients for landmark locations,
+    // one per 3D coord component
   BOOST_FOREACH(ControlPoint& cp, *x.cnet)
   {
       // Get the estimated location of this control point, as stored
       // in the control network. This is a decision variable.
     Vector3 b = cp.position();
+
+      // get the error for this cp
+    double cp_error = getControlPointError(cp, x);
+
+      // Now tweak each dimension, get gradient
     for (int i = 0; i < 3; ++i)
     {
-        // We can't use the same function for the gradient calculation
-        // because we don't have a way to get a reference to the
-        // position vector we're working on.  Essentially repeat
-        // the gradient calculation code here.
       double b_save = b[i];
       double epsilon = getGradientEpsilon(b_save, 1e-7, 1e-7);
       b[i] += epsilon;
       cp.set_position(b);
-      double error_new = operator()(x);
-      gradient.x_k[i_x_k++] = (error_new - cur_error) / (epsilon);
+      double error_new = getControlPointError(cp, x);
+      gradient.x_k[i_x_k++] = (error_new - cp_error) / epsilon;
       b[i] = b_save;
     }
     cp.set_position(b);
   }
 
-    // Now go through pj
+    // Now go through pj.  Each camera can be referenced by
+    // multiple control points, so we have to do the whole
+    // projection error.
+  double project_error = ProjectionError(x);
+  
   BOOST_FOREACH(Vector3& pj, x.pj)
   {
     for (int i = 0; i < 3; ++i)
     {
       gradient.x_k[i_x_k++] =
-          calculateGradient(pj[i], 1e-7, x, cur_error);
+          calculateProjectionGradient(pj[i], 1e-7, x, project_error);
     }
   }
-  
     // cj_second
   BOOST_FOREACH(Vector4& cj, x.cj_second)
   {
     for (int i = 0; i < 4; ++i)
     {
       gradient.x_k[i_x_k++] =
-          calculateGradient(cj[i], 1e-7, x, cur_error);
+          calculateProjectionGradient(cj[i], 1e-7, x, project_error);
     }
   }
 
     // precision values
   for (int i = 0; i < 2; i++)
   {
+      // projection precision only affects projection error    
     gradient.x_k[i_x_k++] =
-        calculateGradient(x.precision_p[i], 1e-7, x, cur_error);
+        calculateTrajectoryGradient(x.precision_p[i], 1e-7, x, traj_error);
+  }
+    // Store the previously-calculated precision gradients
+  for (int i = 0; i < 3; i++)
+  {
+    gradient.x_k[i_x_k++] = precision_r_gradient[i];
   }
   for (int i = 0; i < 3; i++)
   {
-    gradient.x_k[i_x_k++] =
-        calculateGradient(x.precision_r[i], 1e-7, x, cur_error);
+    gradient.x_k[i_x_k++] = precision_s_gradient[i];
   }
-  for (int i = 0; i < 3; i++)
-  {
-    gradient.x_k[i_x_k++] =
-        calculateGradient(x.precision_s[i], 1e-7, x, cur_error);
-  }
-  gradient.x_k[i_x_k++] =
-      calculateGradient(x.precision_t, 1e-7, x, cur_error);
+  gradient.x_k[i_x_k++] = precision_t_gradient;
   
   return gradient;
 }
@@ -450,18 +438,18 @@ ORBAGradientSet ORBAErrorEstimator::gradient(
 ///        minimum amount by which the variable will be tweaked.
 /// \param x The decision variable set to use in the calculation.
 /// \param original_error The error before any tweaks were made.
-double ORBAErrorEstimator::calculateGradient(
+double ORBAErrorEstimator::calculateTrajectoryGradient(
     double& to_tweak,
     double tweak_scaling,
     const ORBADecisionVariableSet& x,
-    double original_error) const
+    double original_trajectory_error) const
 {
   double save = to_tweak;
   double eps = getGradientEpsilon(save, tweak_scaling, tweak_scaling);
   to_tweak += eps;
-  double new_error = operator()(x);
+  double new_error = TrajectoryDependentErrors(x);
   to_tweak = save;
-  return (new_error - original_error) / eps;
+  return (new_error - original_trajectory_error) / eps;
 }
 
 unsigned ORBAErrorEstimator::dimension() const
@@ -470,5 +458,204 @@ unsigned ORBAErrorEstimator::dimension() const
       + mObservations->getControlNetwork()->size() * 3
       + 16;
 }
+
+// calculate the errors related to a given reading, given the reading's
+// time value and the previous state.
+// Returns the error, and sets next_position and next_velocity parameters
+// to the reading's calculated p and v.
+double ORBAErrorEstimator::getSingleTimestampError(
+    std::size_t i, // Index of point
+    const ORBADecisionVariableSet& x, // full set of variables, only a few are used
+    const TrajectoryCalculator& traj_calc,
+    const Vector3& prev_position, Vector3& next_position, // prev_* is [in]
+    const Vector3& prev_velocity, Vector3& next_velocity, // next_* is [out]
+    OrbitalReading::timestamp_t prev_t, // previous time
+    OrbitalReading::timestamp_t next_t) const // time we're calculating error for
+{
+    // get the observed coordinates and time
+  const OrbitalCameraReading& observation = mObservations->getReading(i);
+  
+    // Get the OR-calculated coordinates and velocity
+  traj_calc.calculateNextPoint(prev_position, prev_velocity,
+                               next_t - prev_t,
+                               next_position, next_velocity);
+  
+    // Get the BA-calculated coordinates
+  Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
+  
+    // Calculate R
+  Matrix3x3 r = CalculateR(next_position, next_velocity);
+  
+    // Calculate the error components
+  double error = getSinglePointSatelliteError(observation.mCoord, next_position,
+                                              r, mWeights[i], x.precision_s);
+  error += getSinglePointRegistrationError(ba_coord, next_position,
+                                           r, x.precision_r);
+  error += getSinglePointTimingError(observation.mTime, next_t,
+                                     x.precision_t, mWeights[i]);
+  
+  return error;
+}
+
+void ORBAErrorEstimator::calculateTimeGradients(
+    ORBADecisionVariableSet& x,
+    ORBAGradientSet& gradient,
+    Vector3& precision_r_gradient,
+    Vector3& precision_s_gradient,
+    double& precision_t_gradient) const
+{
+    // Initialize some variables we'll be using to keep running totals
+  Vector3 total_tweaked_precision_r_delta(0,0,0);
+  Vector3 total_tweaked_precision_s_delta(0,0,0);
+  double total_tweaked_precision_t_delta = 0;
+
+    // Calculate tweaked values for our precisions
+  Vector3 precision_r_eps, precision_r_tweaked;
+  Vector3 precision_s_eps, precision_s_tweaked;
+  for (std::size_t i = 0; i < 3; i++)
+  {
+    precision_r_eps[i] = getGradientEpsilon(x.precision_r[i], 1e-7, 1e-7);
+    precision_r_tweaked[i] = x.precision_r[i] + precision_r_eps[i];
+    precision_s_eps[i] = getGradientEpsilon(x.precision_s[i], 1e-7, 1e-7);
+    precision_s_tweaked[i] = x.precision_s[i] + precision_s_eps[i];
+  }
+  double precision_t_eps = getGradientEpsilon(x.precision_t, 1e-7, 1e-7);
+  double precision_t_tweaked = x.precision_t + precision_t_eps;
+
+    // We'll need to calculate each timestamp's position.
+    // Get ready to do that.
+  GravityAccelerationFunctor gravity(x.GM);
+  TrajectoryCalculator traj_calc(gravity);
+  Vector3 prev_position = x.p0;
+  Vector3 prev_velocity = x.v0;
+  Vector3 cur_position;
+  Vector3 cur_velocity;
+  Vector3 tweaked_position;
+  Vector3 tweaked_velocity;
+  OrbitalReading::timestamp_t prev_t = x.timestamps[0];
+      
+  const OrbitalReading::timestamp_t TIMESTAMP_EPSILON = 2;
+
+    // Go through the readings
+  for (std::size_t i = 0; i < x.timestamps.size(); i++)
+  {
+      // Alias to time values
+    OrbitalReading::timestamp_t& cur_t = x.timestamps[i];
+    
+      // get the observed coordinates and time
+    const OrbitalCameraReading& observation = mObservations->getReading(i);
+    
+      // Get the BA-calculated coordinates
+    Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
+    
+      // Get the OR-calculated coordinates and velocity.
+      // Make sure this is the last call in the loop to change
+      // cur_position and cur_velocity.
+    traj_calc.calculateNextPoint(prev_position, prev_velocity,
+                                 cur_t - prev_t,
+                                 cur_position, cur_velocity);
+    
+      // Calculate R
+    Matrix3x3 r = CalculateR(cur_position, cur_velocity);
+    
+      // Calculate the error components
+    double reg_error =
+        getSinglePointRegistrationError(ba_coord, cur_position,
+                                        r, x.precision_r);
+    double sat_error =
+        getSinglePointSatelliteError(observation.mCoord, cur_position,
+                                     r, mWeights[i], x.precision_s);
+    double time_error =
+        getSinglePointTimingError(observation.mTime, cur_t,
+                                  x.precision_t, mWeights[i]);
+    
+      // total error at the current value
+    double cur_err = sat_error + reg_error + time_error;
+
+      // Error delta with tweaked precision_s
+    for (int j = 0; j < 3; j++)
+    {
+      // Error delta with tweaked precision_r
+    total_tweaked_precision_r_delta[j] +=
+        getSinglePointRegistrationError(ba_coord, cur_position,
+                                        r, precision_r_tweaked[j])
+        - reg_error;
+
+     total_tweaked_precision_s_delta[j] +=
+        getSinglePointSatelliteError(observation.mCoord, cur_position,
+                                     r, mWeights[i], precision_s_tweaked[j])
+        - sat_error;
+    }
+
+      // Error delta with tweaked precision_t
+    total_tweaked_precision_t_delta +=
+        getSinglePointTimingError(observation.mTime, cur_t,
+                                  precision_t_tweaked, mWeights[i])
+        - time_error;
+
+      // Error when you tweak the time value.
+    double time_tweaked_err =
+        getSingleTimestampError(i, x, traj_calc,
+                                prev_position, tweaked_position,
+                                prev_velocity, tweaked_velocity,
+                                prev_t, cur_t + TIMESTAMP_EPSILON);
+    
+
+      // Now that we've got all the data, calculate the time gradient
+    gradient.t[i] = (time_tweaked_err - cur_err) / TIMESTAMP_EPSILON;
+    
+      // Get ready for next iteration through the loop
+    prev_position = cur_position;
+    prev_velocity = cur_velocity;
+    prev_t = cur_t;
+  }
+    // First time gradient is always zero.
+    // We still went through the loop for i=0 so that the precision gradients
+    // would get calculated, so just change the first time gradient to zero here.
+  gradient.t[0] = 0.0;
+
+    // Now get the rest of the precision data, calculate precision gradients
+  for (int i = 0; i < 3; i++)
+  {
+    double save = x.precision_s[i];
+    x.precision_s[i] = precision_s_tweaked[i];
+    total_tweaked_precision_s_delta[i] +=
+        pointIndependentSatelliteError(mWeights, x.precision_s);
+    x.precision_s[i] = save;
+    total_tweaked_precision_s_delta[i] -=
+        pointIndependentSatelliteError(mWeights, x.precision_s);
+    precision_s_gradient[i] =
+        total_tweaked_precision_s_delta[i] / precision_s_eps[i];
+    
+    save = x.precision_r[i];
+    x.precision_r[i] = precision_r_tweaked[i];
+    total_tweaked_precision_r_delta[i] +=
+        pointIndependentRegistrationError(x.timestamps.size(), x.precision_r);
+    x.precision_r[i] = save;
+    total_tweaked_precision_r_delta[i] -=
+        pointIndependentRegistrationError(x.timestamps.size(), x.precision_r);
+    precision_r_gradient[i] =
+        total_tweaked_precision_r_delta[i] / precision_r_eps[i];
+  }
+  total_tweaked_precision_t_delta +=
+      pointIndependentTimingError(mWeights, precision_t_tweaked)
+      - pointIndependentTimingError(mWeights, x.precision_t);
+  precision_t_gradient = total_tweaked_precision_t_delta / precision_t_eps;
+}
+
+double ORBAErrorEstimator::calculateProjectionGradient(
+    double& to_tweak,
+    double tweak_scaling,
+    const ORBADecisionVariableSet& x,
+    double original_projection_error) const
+{
+  double save = to_tweak;
+  double eps = getGradientEpsilon(save, tweak_scaling, tweak_scaling);
+  to_tweak += eps;
+  double new_error = ProjectionError(x);
+  to_tweak = save;
+  return (new_error - original_projection_error) / eps;
+}
+
 
 }}

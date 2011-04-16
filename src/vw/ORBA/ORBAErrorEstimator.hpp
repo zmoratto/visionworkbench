@@ -4,6 +4,7 @@
 #include <vw/ORBA/ORBADecisionVariableSet.hpp>
 #include <vw/ORBA/ORBAGradientSet.hpp>
 #include <vw/ORBA/ObservationSet.hpp>
+#include <vw/orbital_refinement/TrajectoryCalculator.hpp>
 
 #include <vw/Math/Vector.h>
 #include <vw/Math/Matrix.h>
@@ -44,24 +45,35 @@ public:
   
 private:
 
-  double TrajectoryDependentErrors(const domain_type& x) const;
+    // How error functions are nested:
+    // operator()
+    //   ProjectionError(x)
+    //     getControlPointError(cp) [Once per ControlPoint]
+    //   TrajectoryDependentErrors(x)
+    //     getSingleTimestampError(p0, v0, t0, t[i]) [Once per reading]
+    //       getSinglePointSatelliteError(p[i])
+    //       getSinglePointRegistrationError(p[i])
+    //       getSinglePointTimingError(t[i])      
+    //     pointIndependentSatelliteError()
+    //     pointIndependentRegistrationError()
+    //     pointIndependentTimingError()
 
-  Matrix3x3 CalculateR(const Vector3& pos, const Vector3& vel) const;
-  
   double ProjectionError(const domain_type& x) const;
   
-  double pointIndependentRegistrationError(
-      std::size_t point_count, 
-      const Vector3& precisionR) const;
-
-  double getSinglePointRegistrationError(
-      const Vector3& BA,
-      const Vector3& OR,
-      const Matrix3x3& r,
-      const Vector3& precisionR) const;
+  double getControlPointError(
+      const ControlPoint& cp,
+      const ORBADecisionVariableSet& x) const;
   
-  double pointIndependentSatelliteError(const std::vector<double>& weights,
-                                        const Vector3& precisionS) const;
+  double TrajectoryDependentErrors(const domain_type& x) const;
+
+  double getSingleTimestampError(
+      std::size_t i,
+      const ORBADecisionVariableSet& x,
+      const TrajectoryCalculator& traj_calc,
+      const Vector3& prev_position, Vector3& next_position,
+      const Vector3& prev_velocity, Vector3& next_velocity,
+      OrbitalReading::timestamp_t prev_t,
+      OrbitalReading::timestamp_t next_t) const;
 
   double getSinglePointSatelliteError(const Vector3& original_reading,
                                       const Vector3& OR_refined,
@@ -69,18 +81,47 @@ private:
                                       const double& weight,
                                       const Vector3& precisionS) const;
   
-  double pointIndependentTimingError(const std::vector<double>& timeWeights,
-                                     double timeVariance) const;
-
+  double getSinglePointRegistrationError(
+      const Vector3& BA,
+      const Vector3& OR,
+      const Matrix3x3& r,
+      const Vector3& precisionR) const;
+  
   double getSinglePointTimingError(OrbitalReading::timestamp_t observed_time,
                                    OrbitalReading::timestamp_t estimated_time,
                                    const double& timeVariance,
                                    const double& weight) const;
 
-  double calculateGradient(double& to_tweak,
-                           double tweak_scaling,
-                           const ORBADecisionVariableSet& x,
-                           double original_error) const;
+  double pointIndependentSatelliteError(const std::vector<double>& weights,
+                                        const Vector3& precisionS) const;
+
+  double pointIndependentRegistrationError(
+      std::size_t point_count, 
+      const Vector3& precisionR) const;
+
+  double pointIndependentTimingError(const std::vector<double>& timeWeights,
+                                     double timeVariance) const;
+
+    // Gradients are calculated using the relevant error functions
+    // for each gradient component.  Some sub-functions have been split out
+    // for readability and code reuse.
+  double calculateTrajectoryGradient(double& to_tweak,
+                                     double tweak_scaling,
+                                     const ORBADecisionVariableSet& x,
+                                     double original_trajectory_error) const;
+
+  double calculateProjectionGradient(double& to_tweak,
+                                     double tweak_scaling,
+                                     const ORBADecisionVariableSet& x,
+                                     double original_projection_error) const;
+
+  void calculateTimeGradients(ORBADecisionVariableSet& x,
+                              ORBAGradientSet& gradients,
+                              Vector3& precision_r_gradient,
+                              Vector3& precision_s_gradient,
+                              double& precision_t_gradient) const;
+  
+  Matrix3x3 CalculateR(const Vector3& pos, const Vector3& vel) const;
   
   boost::shared_ptr<ObservationSet> mObservations;
   
