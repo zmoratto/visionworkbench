@@ -85,7 +85,7 @@ size_t parseIndex(std::string filename)
     size_t first = filename.find_last_of("-");
     size_t last = filename.find_first_of(".");
 
-    std::string index = filename.substr(first, last);
+    std::string index = filename.substr(first+1, last-first-1);
 
     return atoi(index.c_str());
 }
@@ -183,14 +183,14 @@ int main(int argc, char** argv)
     boost::shared_ptr<PinholeModel> new_cam(new PinholeModel(in));
     
     // Create a reading from the camera, store it in the observations
-    observations.addReading(OrbitalCameraReading(in, times[i], new_cam), parseIndex(in));
+    observations.addReading(OrbitalCameraReading(in, times[i], new_cam, parseIndex(in)));
 
     // Increment the counter for the timestamp vector
     i++;
   }
 
   // Load the control network
-  std::string cnet_filename = "a15_rev033/a15_rev033-single_orbit-20110317-1313.cnet";
+  std::string cnet_filename = "a15_rev033-single_orbit-20110317-1313.cnet";
   boost::shared_ptr<ControlNetwork> network( new ControlNetwork("a15_rev033") );
   network->read_binary( cnet_filename );
 

@@ -17,16 +17,18 @@ namespace ORBA {
 using namespace vw::camera;
     
 // A single reading/image.  It has a location,
-// a timestamp, and ID, a camera model, and an
-// orientation (pose).
+// a timestamp, and ID, a camera model, an
+// orientation (pose), and a numeric image ID.
 struct OrbitalCameraReading : public OrbitalReading
 {
   boost::shared_ptr<PinholeModel> mCamera;
+  std::size_t mImageID;
   
   OrbitalCameraReading( std::string id, timestamp_t time,
-                        boost::shared_ptr<PinholeModel> cam ) 
+                        boost::shared_ptr<PinholeModel> cam,
+                        std::size_t image_id) 
           : OrbitalReading(id, time, cam->camera_center()),
-            mCamera(cam)
+            mCamera(cam), mImageID(image_id)
   {}
 };
 

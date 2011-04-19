@@ -172,14 +172,18 @@ double ORBAErrorEstimator::getControlPointError(
   
   BOOST_FOREACH(const ControlMeasure& cm, cp)
   {
+      // Map from image_id to vector index so we can look up the
+      // data in the decision variables
+    std::size_t reading_index = mObservations->getIndexFromImageID(cm.image_id());
+    
       // Get the camera parameters for this camera
-    const Vector3& a_location = x.pj[cm.image_id()];
-    const Vector4& a_rotation = x.cj_second[cm.image_id()];
+    const Vector3& a_location = x.pj[reading_index];
+    const Vector4& a_rotation = x.cj_second[reading_index];
     
       // cm.position() is the pixel location of cp in this image.
       // It never changes.  We compare this actual pixel location
       // against the expected pixel location of world-space coordinate b.
-    AdjustedCameraModel adj_cam(mObservations->getCamera(cm.image_id()),
+    AdjustedCameraModel adj_cam(mObservations->getCameraByImageID(cm.image_id()),
                                 a_location,
                                 math::Quaternion<double>(a_rotation));
     Vector2 delta = elem_diff(cm.position(), adj_cam.point_to_pixel(b));
@@ -475,7 +479,7 @@ double ORBAErrorEstimator::getSingleTimestampError(
     OrbitalReading::timestamp_t next_t) const // time we're calculating error for
 {
     // get the observed coordinates and time
-  const OrbitalCameraReading& observation = mObservations->getReading(i);
+  const OrbitalCameraReading& observation = mObservations->getReadingByIndex(i);
   
     // Get the OR-calculated coordinates and velocity
   traj_calc.calculateNextPoint(prev_position, prev_velocity,
@@ -483,7 +487,7 @@ double ORBAErrorEstimator::getSingleTimestampError(
                                next_position, next_velocity);
   
     // Get the BA-calculated coordinates
-  Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
+  Vector3 ba_coord = mObservations->getCameraByIndex(i)->camera_center() + x.pj[i];
   
     // Calculate R
   Matrix3x3 r = CalculateR(next_position, next_velocity);
@@ -545,10 +549,10 @@ void ORBAErrorEstimator::calculateTimeGradients(
     OrbitalReading::timestamp_t& cur_t = x.timestamps[i];
     
       // get the observed coordinates and time
-    const OrbitalCameraReading& observation = mObservations->getReading(i);
+    const OrbitalCameraReading& observation = mObservations->getReadingByIndex(i);
     
       // Get the BA-calculated coordinates
-    Vector3 ba_coord = mObservations->getCamera(i)->camera_center() + x.pj[i];
+    Vector3 ba_coord = mObservations->getCameraByIndex(i)->camera_center() + x.pj[i];
     
       // Get the OR-calculated coordinates and velocity.
       // Make sure this is the last call in the loop to change

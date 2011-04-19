@@ -156,11 +156,14 @@ namespace
         // * OR time and position are stored in the reading outside of the camera
         dest.setControlNetwork(obs.getControlNetwork());
         dest.setExpectedReadingCount(readings.size());
-        for (std::size_t i = 0; i < obs.getReadings().size(); i++)
+        int i = 0;
+        BOOST_FOREACH(const OrbitalCameraReading& original_reading, obs.getReadings())
         {
             // Create the reading, store original data and revised time.
-          OrbitalCameraReading reading(obs.getReading(i).mId, decision_vars.timestamps[i],
-                                       obs.getReading(i).mCamera);
+          OrbitalCameraReading reading(original_reading.mId,
+                                       decision_vars.timestamps[i],
+                                       original_reading.mCamera,
+                                       original_reading.mImageID);
             // Add the camera offsets
           AdjustedCameraModel adj_cam(reading.mCamera, decision_vars.pj[i],
                                       Quaternion<double>(decision_vars.cj_second[i]));
@@ -171,6 +174,7 @@ namespace
           reading.mCoord = estimated_locations[i];
           
           dest.addReading(reading);
+          i++;
         }
 
         // Denormalize times

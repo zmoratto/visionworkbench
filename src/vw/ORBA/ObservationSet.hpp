@@ -3,6 +3,8 @@
 
 #include <vw/ORBA/OrbitalCameraReading.hpp>
 #include <vw/BundleAdjustment/ControlNetwork.h>
+#include <vector>
+#include <map>
 
 namespace vw {
 namespace ORBA {
@@ -13,6 +15,11 @@ using namespace vw::ba;
 // This is a structure in which to store our observations.
 // It boils down to a std::vector<OrbitalCameraReading>
 // and a ControlNetwork.
+// Readings and associated cameras are accessible by index,
+// which is the 0-n order in the vector, or by Camera ID,
+// which is the image_id() it is referred to in the ControlNetwork.
+// You can get the index from the image ID using getIndexFromImageID().
+// The OrbitalCameraReading class 
 class ObservationSet
 {
 public:
@@ -30,9 +37,9 @@ public:
   
   void addReading(const OrbitalCameraReading& pt)
   {
+    mIndexMap[pt.mImageID] = mReadings.size();
     mReadings.push_back(pt);
   }
-        
   
   void setControlNetwork(boost::shared_ptr<ControlNetwork> ctrl_net)
   {
@@ -44,7 +51,14 @@ public:
     return mControlNetwork;
   }
 
-  boost::shared_ptr<PinholeModel> getCamera(std::size_t index) const
+  boost::shared_ptr<PinholeModel> getCameraByImageID(std::size_t image_id) const
+  {
+    if (mIndexMap.find(image_id) == mIndexMap.end())
+      std::cout << " Tried to get a camera with ID " << image_id << ", which we don't have" << std::endl;
+    return mReadings[mIndexMap.find(image_id)->second].mCamera;
+  }
+
+  boost::shared_ptr<PinholeModel> getCameraByIndex(std::size_t index) const
   {
     return mReadings[index].mCamera;
   }
@@ -54,10 +68,21 @@ public:
     return mReadings;
   }
 
-  const OrbitalCameraReading& getReading(std::size_t index) const
+  const OrbitalCameraReading& getReadingByImageID(std::size_t index) const
+  {
+    return mReadings[mIndexMap.find(index)->second];
+  }
+
+  const OrbitalCameraReading& getReadingByIndex(std::size_t index) const
   {
     return mReadings[index];
   }
+
+  std::size_t getIndexFromImageID(std::size_t image_id) const
+  { return mIndexMap.find(image_id)->second; }
+
+  bool imageIDExists(std::size_t image_id) const
+  { return mIndexMap.find(image_id) != mIndexMap.end(); }
 
   void normalizeTimes()
   {
@@ -92,8 +117,10 @@ public:
 
   void setTimeNormalizationBase(OrbitalReading::timestamp_t base)
   { mBaseTime = base; }
-  
+
 private:
+
+  std::map<std::size_t, std::size_t> mIndexMap;
 
   std::vector<OrbitalCameraReading> mReadings;
   
