@@ -80,6 +80,16 @@ void write_results (std::string file, std::vector<OrbitalCameraReading> data)
   output.close();
 }
 
+size_t parseIndex(std::string filename)
+{
+    size_t first = filename.find_last_of("-");
+    size_t last = filename.find_first_of(".");
+
+    std::string index = filename.substr(first, last);
+
+    return atoi(index.c_str());
+}
+
 bool read_input (std::string filename, std::vector<std::string>& camera_names,
                  std::vector<OrbitalReading::timestamp_t>& times)
 {
@@ -173,7 +183,7 @@ int main(int argc, char** argv)
     boost::shared_ptr<PinholeModel> new_cam(new PinholeModel(in));
     
     // Create a reading from the camera, store it in the observations
-    observations.addReading(OrbitalCameraReading(in, times[i], new_cam));
+    observations.addReading(OrbitalCameraReading(in, times[i], new_cam), parseIndex(in));
 
     // Increment the counter for the timestamp vector
     i++;
