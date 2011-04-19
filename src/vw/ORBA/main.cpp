@@ -183,7 +183,7 @@ int main(int argc, char** argv)
     boost::shared_ptr<PinholeModel> new_cam(new PinholeModel(in));
     
     // Create a reading from the camera, store it in the observations
-    observations.addReading(OrbitalCameraReading(in, times[i], new_cam, parseIndex(in)));
+    observations.addReading(OrbitalCameraReading(in, times[i], new_cam, i));
 
     // Increment the counter for the timestamp vector
     i++;
