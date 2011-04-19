@@ -103,6 +103,8 @@ struct ORBADecisionVariableSet
   ORBADecisionVariableSet(const ORBADecisionVariableSet& to_copy)
           : trajectory(),
             cnet(to_copy.cnet),
+            pj(to_copy.pj),
+            cj_second(to_copy.cj_second),
             precision_p(to_copy.precision_p),
             precision_r(to_copy.precision_r),
             precision_s(to_copy.precision_s),
@@ -126,7 +128,7 @@ struct ORBADecisionVariableSet
             v0(trajectory.v0),
             timestamps(trajectory.timestamps)
   {
-        
+      // No need to initialize other variables, this starts out empty.
   }
 
   ORBADecisionVariableSet& operator=(const ORBADecisionVariableSet& rhs)
