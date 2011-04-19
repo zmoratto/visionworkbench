@@ -87,6 +87,10 @@ struct ORBADecisionVariableSet
       v0(trajectory.v0),
       timestamps(trajectory.timestamps)
   {
+      // Initialize pj and cj_second
+    pj.assign(timestamps.size(), Vector3(0,0,0));
+    cj_second.assign(timestamps.size(), Vector4(0,0,0,0));
+    
       // User passes in sigmas instead of precision as that is
       // more intuitive for the user to understand
     precision_p = elem_quot(1, elem_prod(sigma_p,sigma_p));
