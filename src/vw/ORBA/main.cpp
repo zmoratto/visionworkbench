@@ -19,9 +19,6 @@
 #include <fstream>
 #include <list>
 
-#include "ObservationSet.hpp"
-#include "OrbitalCameraReading.hpp"
-
 using namespace std;
 using namespace vw::camera;
 using namespace vw::ORBA;
