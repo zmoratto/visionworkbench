@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include <boost/static_assert.hpp>
+#include <boost/math/special_functions/next.hpp>
 
 #include <vw/Math/Vector.h>
 
@@ -80,7 +81,6 @@ namespace math {
   } // namespace vector_containment_comparison
   /// \endcond
 
-
   // *******************************************************************
   // class BBoxBase
   // *******************************************************************
@@ -90,6 +90,19 @@ namespace math {
   /// corners.
   template <class BBoxT, class RealT, size_t DimN>
   class BBoxBase {
+
+    template <class RealT1>
+    typename boost::enable_if<boost::is_integral<RealT1>, RealT1>::type
+    max_plus_epsilon( RealT1 max ) {
+      return max + RealT1(1);
+    }
+
+    template <class RealT1>
+    typename boost::disable_if<boost::is_integral<RealT1>, RealT1>::type
+    max_plus_epsilon( RealT1 max ) {
+      return boost::math::float_next(max);
+    }
+
   public:
 
     /// Default constructor.  Constructs the ultimate empty bounding
@@ -131,12 +144,12 @@ namespace math {
       VW_ASSERT(m_min.size() == 0 || point.impl().size() == m_min.size(), ArgumentErr() << "Vector must have dimension " << m_min.size() << ".");
       if (m_min.size() == 0) {
         m_min = point;
-        m_max = point;
-      }
-      else {
+        for ( size_t i = 0; i < m_max.size(); ++i )
+          m_max[i] = max_plus_epsilon<RealT>( point.impl()[i] );
+      } else {
         for (size_t i = 0; i < m_min.size(); ++i) {
-          if (point.impl()[i] > m_max[i])
-            m_max[i] = RealT(point.impl()[i]);
+          if (point.impl()[i] >= m_max[i])
+            m_max[i] = max_plus_epsilon<RealT>(point.impl()[i]);
           if (point.impl()[i] < m_min[i])
             m_min[i] = RealT(point.impl()[i]);
         }
