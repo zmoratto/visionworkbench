@@ -403,3 +403,31 @@ TEST(BBox, Grow ) {
   EXPECT_VECTOR_NEAR( Vector2(1300,1.6e5), bf.max(), eps*1.6e5 );
   EXPECT_VECTOR_NEAR( Vector2(1300,1.6e5), bf.size(), eps*1.6e5 );
 }
+
+TEST(BBox, MinMaxAlternatives ) {
+
+  BBox2 bf;
+  bf.grow( Vector2(5,5) );
+  ASSERT_TRUE( bf.contains(Vector2(5,5)) );
+
+  EXPECT_LT( bf.inclusive_max()[0], bf.max()[0] );
+  EXPECT_LT( bf.inclusive_max()[1], bf.max()[1] );
+  EXPECT_LT( bf.inclusive_max()[0], bf.exclusive_max()[0] );
+  EXPECT_LT( bf.inclusive_max()[1], bf.exclusive_max()[1] );
+  EXPECT_LT( bf.exclusive_min()[0], bf.min()[0] );
+  EXPECT_LT( bf.exclusive_min()[1], bf.min()[1] );
+  EXPECT_LT( bf.exclusive_min()[0], bf.inclusive_min()[0] );
+  EXPECT_LT( bf.exclusive_min()[1], bf.inclusive_min()[1] );
+
+  BBox2i bi;
+  bi.grow( Vector2i(5,5) );
+  ASSERT_TRUE( bi.contains(Vector2i(5,5)) );
+
+  EXPECT_VECTOR_EQ( Vector2i(5,5), bi.min() );
+  EXPECT_VECTOR_EQ( Vector2i(4,4), bi.exclusive_min() );
+  EXPECT_VECTOR_EQ( Vector2i(5,5), bi.inclusive_min() );
+  EXPECT_VECTOR_EQ( Vector2i(6,6), bi.max() );
+  EXPECT_VECTOR_EQ( Vector2i(5,5), bi.inclusive_max() );
+  EXPECT_VECTOR_EQ( Vector2i(6,6), bi.exclusive_max() );
+
+}

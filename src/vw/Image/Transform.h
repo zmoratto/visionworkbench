@@ -94,63 +94,61 @@ namespace vw {
     inline ImplT const& impl() const { return static_cast<ImplT const&>(*this); }
 
     BBox2 forward_bbox( BBox2 const& bbox ) const {
-      const double E = std::numeric_limits<double>::epsilon();
 
       ImplT const& txform = impl();
       BBox2 transformed_bbox;
       switch( txform.forward_type() ) {
       case ConvexFunction:
-        transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.min().y()) ) ); // Top left
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-E,bbox.min().y()) ) ); // Top right
-        transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.max().y()-E) ) ); // Bottom left
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-E, bbox.max().y()-E) ) ); // Bottom right
+        transformed_bbox.grow( txform.forward( bbox.min() ) );                                       // Top left
+        transformed_bbox.grow( txform.forward( Vector2(bbox.inclusive_max().x(),bbox.min().y()) ) ); // Top right
+        transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),bbox.inclusive_max().y()) ) ); // Bottom left
+        transformed_bbox.grow( txform.forward( bbox.inclusive_max() ) );                             // Bottom right
         break;
       case ContinuousFunction:
         for( double x=bbox.min().x(); x<bbox.max().x(); ++x ) { // Top and bottom
           transformed_bbox.grow( txform.forward( Vector2(x,bbox.min().y()) ) );
-          transformed_bbox.grow( txform.forward( Vector2(x,bbox.max().y()-E) ) );
+          transformed_bbox.grow( txform.forward( Vector2(x,bbox.inclusive_max().y()) ) );
         }
         for( double y=bbox.min().y(); y<bbox.max().y(); ++y ) { // Left and right
           transformed_bbox.grow( txform.forward( Vector2(bbox.min().x(),y) ) );
-          transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-E,y) ) );
+          transformed_bbox.grow( txform.forward( Vector2(bbox.inclusive_max().x(),y) ) );
         }
         // add the last epsilon corner
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-E,bbox.max().y()-E) ) );
+        transformed_bbox.grow( txform.forward( bbox.inclusive_max() ) );
         break;
       case DiscontinuousFunction:
         for( double y=bbox.min().y(); y<bbox.max().y(); ++y )
           for( double x=bbox.min().x(); x<bbox.max().x(); ++x )
             transformed_bbox.grow( txform.forward( Vector2(x,y) ) );
         // add the last epsilon corner
-        transformed_bbox.grow( txform.forward( Vector2(bbox.max().x()-E,bbox.max().y()-E) ) );
+        transformed_bbox.grow( txform.forward( bbox.inclusive_max() ) );
         break;
       }
       return transformed_bbox;
     }
 
     BBox2 reverse_bbox( BBox2 const& bbox ) const {
-      const double E = std::numeric_limits<double>::epsilon();
 
       ImplT const& txform = impl();
       BBox2 transformed_bbox;
       switch( txform.reverse_type() ) {
       case ConvexFunction:
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.min().y()) ) ); // Top left
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-E,bbox.min().y()) ) ); // Top right
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.max().y()-E) ) ); // Bottom left
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-E) ) ); // Bottom right
+        transformed_bbox.grow( txform.reverse( bbox.min() ) );                                       // Top left
+        transformed_bbox.grow( txform.reverse( Vector2(bbox.inclusive_max().x(),bbox.min().y()) ) ); // Top right
+        transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),bbox.inclusive_max().y()) ) ); // Bottom left
+        transformed_bbox.grow( txform.reverse( bbox.inclusive_max() ) );                             // Bottom right
         break;
       case ContinuousFunction:
         for( double x=bbox.min().x(); x<bbox.max().x(); ++x ) { // Top and bottom
           transformed_bbox.grow( txform.reverse( Vector2(x,bbox.min().y()) ) );
-          transformed_bbox.grow( txform.reverse( Vector2(x,bbox.max().y()-E) ) );
+          transformed_bbox.grow( txform.reverse( Vector2(x,bbox.inclusive_max().y()) ) );
         }
         for( double y=bbox.min().y(); y<bbox.max().y(); ++y ) { // Left and right
           transformed_bbox.grow( txform.reverse( Vector2(bbox.min().x(),y) ) );
-          transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-E,y) ) );
+          transformed_bbox.grow( txform.reverse( Vector2(bbox.inclusive_max().x(),y) ) );
         }
         // add the last epsilon corner
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-E,bbox.max().y()-E) ) );
+        transformed_bbox.grow( txform.reverse( bbox.inclusive_max() ) );
         break;
       case DiscontinuousFunction:
         for( double y=bbox.min().y(); y<bbox.max().y(); ++y )
@@ -158,7 +156,7 @@ namespace vw {
             transformed_bbox.grow( txform.reverse( Vector2(x,y) ) );
         break;
         // add the last epsilon corner
-        transformed_bbox.grow( txform.reverse( Vector2(bbox.max().x()-E,bbox.max().y()-E) ) );
+        transformed_bbox.grow( txform.reverse( bbox.inclusive_max() ) );
       }
       return transformed_bbox;
     }

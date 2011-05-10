@@ -93,14 +93,26 @@ namespace math {
 
     template <class RealT1>
     typename boost::enable_if<boost::is_integral<RealT1>, RealT1>::type
-    max_plus_epsilon( RealT1 max ) {
-      return max + RealT1(1);
+    plus_epsilon( RealT1 v ) const {
+      return v + RealT1(1);
     }
 
     template <class RealT1>
     typename boost::disable_if<boost::is_integral<RealT1>, RealT1>::type
-    max_plus_epsilon( RealT1 max ) {
-      return boost::math::float_next(max);
+    plus_epsilon( RealT1 v ) const {
+      return boost::math::float_next(v);
+    }
+
+    template <class RealT1>
+    typename boost::enable_if<boost::is_integral<RealT1>, RealT1>::type
+    minus_epsilon( RealT1 v ) const {
+      return v - RealT1(1);
+    }
+
+    template <class RealT1>
+    typename boost::disable_if<boost::is_integral<RealT1>, RealT1>::type
+    minus_epsilon( RealT1 v ) const {
+      return boost::math::float_prior(v);
     }
 
   public:
@@ -145,11 +157,11 @@ namespace math {
       if (m_min.size() == 0) {
         m_min = point;
         for ( size_t i = 0; i < m_max.size(); ++i )
-          m_max[i] = max_plus_epsilon<RealT>( point.impl()[i] );
+          m_max[i] = plus_epsilon<RealT>( point.impl()[i] );
       } else {
         for (size_t i = 0; i < m_min.size(); ++i) {
           if (point.impl()[i] >= m_max[i])
-            m_max[i] = max_plus_epsilon<RealT>(point.impl()[i]);
+            m_max[i] = plus_epsilon<RealT>(point.impl()[i]);
           if (point.impl()[i] < m_min[i])
             m_min[i] = RealT(point.impl()[i]);
         }
@@ -238,15 +250,27 @@ namespace math {
 
     /// Returns the minimal point of the bounding box.
     Vector<RealT, DimN> const& min() const { return m_min; }
+    Vector<RealT, DimN> &min() { return m_min; }
+    Vector<RealT, DimN> inclusive_min() const { return min(); }
+    Vector<RealT, DimN> exclusive_min() const {
+      Vector<RealT, DimN> copy;
+      copy.set_size( m_min.size() ); // Use set_size as DimN could be zero
+      for ( size_t i = 0; i < m_min.size(); ++i )
+        copy[i] = minus_epsilon( m_min[i] );
+      return copy;
+    }
 
     /// Returns the maximal point of the bounding box.
     Vector<RealT, DimN> const& max() const { return m_max; }
-
-    /// Returns the minimal point of the bounding box (non-const overload).
-    Vector<RealT, DimN> &min() { return m_min; }
-
-    /// Returns the maximal point of the bounding box (non-const overload).
     Vector<RealT, DimN> &max() { return m_max; }
+    Vector<RealT, DimN> inclusive_max() const {
+      Vector<RealT, DimN> copy;
+      copy.set_size( m_max.size() ); // Use set_size as DimN could be zero
+      for ( size_t i = 0; i < m_max.size(); ++i )
+        copy[i] = minus_epsilon( m_max[i] );
+      return copy;
+    }
+    Vector<RealT, DimN> exclusive_max() const { return max(); }
 
     /// Returns the width (i.e. size in the first dimension) of the
     /// bounding box.
