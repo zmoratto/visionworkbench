@@ -37,9 +37,6 @@ public:
         if( image(x,y) ) result.grow( Vector2(x,y) );
       }
     }
-    if( result != BBox2i() ) {
-      result.max() += Vector2i(1,1);
-    }
     return result;
   }
 
