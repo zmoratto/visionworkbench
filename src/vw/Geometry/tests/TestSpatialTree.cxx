@@ -67,14 +67,14 @@ TEST_P(SpatialTreeTest, Basic) {
   ASSERT_TRUE( t0.check() );
 
   TestGeomPrimitive g0;
-  g0.grow(subvector(p0, 0, dim));
-  g0.grow(subvector(p0_, 0, dim));
+  g0.min() = subvector(p0, 0, dim);
+  g0.max() = subvector(p0_, 0, dim);
   t.add(&g0);
 
   Vector<double,4> p1(1, 2, 0.1, 0.1), p2(1.75, 4, 0.2, 0.2);
   TestGeomPrimitive g1;
-  g1.grow(subvector(p1, 0, dim));
-  g1.grow(subvector(p2, 0, dim));
+  g1.min() = subvector(p1, 0, dim);
+  g1.max() = subvector(p2, 0, dim);
   t.add(&g1);
 
   Vector<double,4> p3(1.5, 3, 0.1, 0.1), p4(2, 5, 0.2, 0.2);
@@ -89,8 +89,8 @@ TEST_P(SpatialTreeTest, Basic) {
   ASSERT_EQ( 0u, l.size() );
 
   TestGeomPrimitive g2;
-  g2.grow(subvector(p3, 0, dim));
-  g2.grow(subvector(p4, 0, dim));
+  g2.min() = subvector(p3, 0, dim);
+  g2.max() = subvector(p4, 0, dim);
   t.add(&g2);
 
   Vector<double,4> p5(1.25, 3.5, 0.15, 0.15), p6(1.6, 3.5, 0.15, 0.15), p7(1.75, 4.5, 0.15, 0.15), p8(1.25, 4.5, 0.15, 0.15), p9(8, 8, 0.15, 0.15);
@@ -110,7 +110,7 @@ TEST_P(SpatialTreeTest, Basic) {
   ASSERT_TRUE( gt1 == &g1 || gt1 == &g2 );
   ASSERT_TRUE( gt2 == &g1 || gt2 == &g2 );
   ASSERT_NE( gt1, gt2 );
-  ASSERT_EQ( &g2, t.contains(subvector(p7, 0, dim)) );
+  ASSERT_EQ( &g2, t.contains(subvector(p7, 0, dim)) ); // breaks
   l.clear();
   t.contains(subvector(p7, 0, dim), l);
   ASSERT_EQ( 1u, l.size() );
@@ -137,8 +137,8 @@ TEST_P(SpatialTreeTest, Basic) {
 
   Vector<double,4> p10(9, 9, 9, 9), p10_(9.1, 9.1, 9.1, 9.1);
   TestGeomPrimitive g3;
-  g3.grow(subvector(p10, 0, dim));
-  g3.grow(subvector(p10_, 0, dim));
+  g3.min() = subvector(p10, 0, dim);
+  g3.max() = subvector(p10_, 0, dim);
   t.add(&g3);
 
   overlaps.clear();
@@ -168,8 +168,8 @@ TEST_P(SpatialTreeTest, Basic) {
 
   Vector<double,4> p11(0.01, 0.01, 0.01, 0.01), p12(6, 6, 6, 6);
   TestGeomPrimitive g4;
-  g4.grow(subvector(p11, 0, dim));
-  g4.grow(subvector(p12, 0, dim));
+  g4.min() = subvector(p11, 0, dim);
+  g4.max() = subvector(p12, 0, dim);
   t.add(&g4);
 
   overlaps.clear();
