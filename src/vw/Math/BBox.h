@@ -156,6 +156,7 @@ namespace math {
       VW_ASSERT(m_min.size() == 0 || point.impl().size() == m_min.size(), ArgumentErr() << "Vector must have dimension " << m_min.size() << ".");
       if (m_min.size() == 0) {
         m_min = point;
+        m_max.set_size( point.impl().size(), false );
         for ( size_t i = 0; i < m_max.size(); ++i )
           m_max[i] = plus_epsilon<RealT>( point.impl()[i] );
       } else {
@@ -172,7 +173,7 @@ namespace math {
     template <class BBoxT1, class RealT1, size_t DimN1>
     void grow( BBoxBase<BBoxT1, RealT1, DimN1> const& bbox ) {
       grow(bbox.min());
-      grow(bbox.max());
+      grow(bbox.inclusive_max());
     }
 
     /// Crops (intersects) this bounding box to the given bounding box.

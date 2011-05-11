@@ -430,4 +430,9 @@ TEST(BBox, MinMaxAlternatives ) {
   EXPECT_VECTOR_EQ( Vector2i(5,5), bi.inclusive_max() );
   EXPECT_VECTOR_EQ( Vector2i(6,6), bi.exclusive_max() );
 
+  // Test that grow(bbox) is using inclusive max
+  BBox2i bi2(0,0,3,3);
+  bi2.grow(BBox2i(0,0,3,3));
+  EXPECT_VECTOR_EQ( Vector2i(0,0), bi2.min() );
+  EXPECT_VECTOR_EQ( Vector2i(3,3), bi2.max() );
 }
