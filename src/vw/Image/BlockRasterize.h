@@ -28,6 +28,21 @@ namespace vw {
   /// A wrapper view that rasterizes its child in blocks.
   template <class ImageT>
   class BlockRasterizeView : public ImageViewBase<BlockRasterizeView<ImageT> > {
+    // These are defined internally later
+    class BlockGenerator;
+
+    // We store this by shared pointer so it doesn't move when we copy
+    // the BlockRasterizeView, since the BlockGenerators point to it.
+    boost::shared_ptr<ImageT> m_child;
+    // We store this by shared pointer so copying a BlockRasterizeView
+    // (i.e. to promote its scope) is not as expensive an operation.
+    boost::shared_ptr<std::vector<Cache::Handle<BlockGenerator> > > m_block_table;
+
+    // Blocks are pixel size of the cells in the block table
+    // Table size is the number of elements in the block table
+    Vector2i m_block_size, m_table_size;
+    int32 m_num_threads;
+    Cache *m_cache_ptr;
   public:
     typedef typename ImageT::pixel_type pixel_type;
     typedef typename ImageT::pixel_type result_type;
@@ -127,8 +142,8 @@ namespace vw {
         return m_bbox.width() * m_bbox.height() * m_child->planes() * sizeof(pixel_type);
       }
 
-      boost::shared_ptr<ImageView<pixel_type> > generate() const {
-        boost::shared_ptr<ImageView<pixel_type> > ptr( new ImageView<pixel_type>( m_bbox.width(), m_bbox.height(), m_child->planes() ) );
+      boost::shared_ptr<value_type > generate() const {
+        boost::shared_ptr<value_type > ptr( new value_type( m_bbox.width(), m_bbox.height(), m_child->planes() ) );
         m_child->rasterize( *ptr, m_bbox );
         return ptr;
       }
@@ -147,37 +162,32 @@ namespace vw {
         m_block_size = Vector2i( cols(), block_rows );
       }
       if( m_cache_ptr ) {
-        m_table_width = (cols()-1) / m_block_size.x() + 1;
-        m_table_height = (rows()-1) / m_block_size.y() + 1;
-        m_block_table.reset( new std::vector<Cache::Handle<BlockGenerator> >( m_table_width * m_table_height ) );
+        m_table_size =
+          elem_sum(elem_quot(Vector2i(cols()-1,rows()-1),
+                             m_block_size), 1);
+        m_block_table.reset( new std::vector<Cache::Handle<BlockGenerator> >( prod(m_table_size) ) );
         BBox2i view_bbox(0,0,cols(),rows());
-        for( int32 iy=0; iy<m_table_height; ++iy ) {
-          for( int32 ix=0; ix<m_table_width; ++ix ) {
-            BBox2i bbox( ix*m_block_size.x(), iy*m_block_size.y(), m_block_size.x(), m_block_size.y() );
+        Vector2i index;
+        for( index.y()=0; index.y()<m_table_size.y(); ++index.y() ) {
+          for( index.x()=0; index.x()<m_table_size.y(); ++index.x() ) {
+            BBox2i bbox( elem_prod(index,m_block_size),
+                         elem_prod(elem_sum(index,1),m_block_size));
             bbox.crop( view_bbox );
-            block(ix,iy) = m_cache_ptr->insert( BlockGenerator( m_child, bbox ) );
+            block(index.x(),index.y()) =
+              m_cache_ptr->insert( BlockGenerator( m_child, bbox ) );
           }
         }
       }
     }
 
     Cache::Handle<BlockGenerator>& block( int ix, int iy ) const {
-      if( ix<0 || ix>=m_table_width || iy<0 || iy>=m_table_height )
-        vw_throw( ArgumentErr() << "BlockRasterizeView: Block indices out of bounds, (" << ix
-                  << "," << iy << ") of (" << m_table_width << "," << m_table_height << ")" );
-      return (*m_block_table)[ix+iy*m_table_width];
+      VW_DEBUG_ASSERT( ix >= 0 && ix < m_table_size.x() &&
+                       iy >= 0 && iy < m_table_size.y(),
+                       ArgumentErr() << "BlockRasterizeView: Block indices out of bounds, ("
+                       << ix << "," << iy << ") is outside table of size "
+                       << m_table_size << "\n" );
+      return (*m_block_table)[ix+iy*m_table_size.x()];
     }
-
-    // We store this by shared pointer so it doesn't move when we copy
-    // the BlockRasterizeView, since the BlockGenerators point to it.
-    boost::shared_ptr<ImageT> m_child;
-    Vector2i m_block_size;
-    int32 m_num_threads;
-    Cache *m_cache_ptr;
-    int m_table_width, m_table_height;
-    // We store this by shared pointer so copying a BlockRasterizeView
-    // (i.e. to promote its scope) is not as expensive an operation.
-    boost::shared_ptr<std::vector<Cache::Handle<BlockGenerator> > > m_block_table;
   };
 
   template <class ImageT>
