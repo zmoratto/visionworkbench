@@ -23,6 +23,10 @@
 #include <vw/Cartography/GeoReference.h>
 #include <vw/Cartography/GeoTransform.h>
 
+#if defined(VW_HAVE_PKG_GDAL) && VW_HAVE_PKG_GDAL==1
+#include "ogr_spatialref.h"
+#endif
+
 using namespace vw;
 using namespace vw::cartography;
 using namespace vw::test;
@@ -107,4 +111,54 @@ TEST( GeoTransform, StereographicSingularity ) {
   BBox2i output, input(50,50,100,100);
   EXPECT_NO_THROW( output = geotx.forward_bbox(input) );
   EXPECT_NEAR( 0, output.min()[1], 2 );
+}
+
+void load_proj4( std::string const& proj4,
+                 GeoReference& georef ) {
+  OGRSpatialReference gdal_spatial_ref;
+  if (gdal_spatial_ref.SetFromUserInput( proj4.c_str() ))
+    vw_throw( ArgumentErr() << "Failed to parse: \"" << proj4 << "\"." );
+  char *wkt = NULL;
+  gdal_spatial_ref.exportToWkt( &wkt );
+  std::string wkt_string(wkt);
+  delete[] wkt;
+
+  georef.set_wkt( wkt_string );
+}
+
+TEST( GeoTransform, DatumTransition ) {
+  GeoReference georef1, georef2, georef3;
+  load_proj4("+proj=lcc +lat_1=38.43333333333333 +lat_2=37.06666666666667 +lat_0=36.5 +lon_0=-120.5 +x_0=609601.2192024384 +y_0=0 +ellps=clrk66 +datum=NAD27 +to_meter=0.34 +no_defs", georef1);
+  georef1.set_transform(math::identity_matrix<3>());
+  load_proj4("+proj=lcc +lat_1=38.43333333333333 +lat_2=37.06666666666667 +lat_0=36.5 +lon_0=-120.5 +x_0=2000000 +y_0=500000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",georef2);
+  Matrix3x3 transform = math::identity_matrix<3>();
+  transform(0,0) = 0.5;
+  transform(1,1) = -0.5;
+  georef2.set_transform(math::identity_matrix<3>());
+  load_proj4("+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs ",georef3);
+  transform(0,2) = 10000;
+  transform(1,2) = -1000000;
+  georef3.set_transform(transform);
+
+  GeoReference georef2_ll;
+  load_proj4("+proj=longlat +units=m",georef2_ll);
+  georef2_ll.set_transform(math::identity_matrix<3>());
+
+  // Comparing 1->2 to 1->3->2. They should produce the same results if everything worked
+  GeoTransform geotx12( georef1, georef2 );
+  GeoTransform geotx13( georef1, georef3 );
+  GeoTransform geotx32( georef3, georef2 );
+
+  for ( size_t x = 0; x < 10000000; x += 100000 ) {
+    for ( size_t y = 0; y < 10000000; y+= 100000 ) {
+      // Verify GeoTransforms are consistent
+      EXPECT_VECTOR_NEAR( geotx12.forward( Vector2(x,y) ),
+                          geotx32.forward(geotx13.forward( Vector2(x,y) )), 1e-6 );
+
+      // Verify that we're consistent with GeoRefs
+      Vector2 lonlat1 = georef1.pixel_to_lonlat( Vector2(x,y) ); // it appears like lonlat is in geocentric coordinates.
+      EXPECT_VECTOR_NEAR( geotx12.forward( Vector2(x,y) ),
+                          georef2.lonlat_to_pixel(lonlat1), 1e-6 );
+    }
+  }
 }
