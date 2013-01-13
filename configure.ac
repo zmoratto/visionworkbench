@@ -265,6 +265,7 @@ AX_PKG(Z, [], [-lz], [zlib.h])
 
 AX_PKG(PNG,  [Z], [-lpng], [png.h])
 AX_PKG(JPEG, [], [-ljpeg], [stdio.h jpeglib.h]) # jpeglib.h requires stdio.h to have been included
+AX_PKG(OPENJPEG, [], [-lopenjp2], [stdio.h openjpeg.h], [openjpeg-2.0])
 
 AX_PKG(ILMBASE, [M Z PTHREADS], [-lImath -lHalf -lIex -lIlmThread], [Iex.h], [OpenEXR])
 AX_PKG(OPENEXR, [ILMBASE], [-lIlmImf], [ImfOutputFile.h], [OpenEXR])
@@ -400,20 +401,21 @@ LDFLAGS="$old_LDFLAGS"
 
 # These are here (instead of inside the PKG macro where they belong)
 # for backwards compatability with older versions of automake.
-AM_CONDITIONAL(HAVE_PKG_LAPACK, [test "$HAVE_PKG_LAPACK" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_PNG, [test "$HAVE_PKG_PNG" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_JPEG, [test "$HAVE_PKG_JPEG" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_TIFF, [test "$HAVE_PKG_TIFF" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_OPENEXR, [test "$HAVE_PKG_OPENEXR" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_HDF, [test "$HAVE_PKG_HDF" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_GDAL, [test "$HAVE_PKG_GDAL" = "yes"])
 AM_CONDITIONAL(HAVE_PKG_CAIROMM, [test "$HAVE_PKG_CAIROMM" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_RABBITMQ_C, [test "$HAVE_PKG_RABBITMQ_C" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_ZEROMQ, [test "$HAVE_PKG_ZEROMQ" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_PROTOBUF, [test "$HAVE_PKG_PROTOBUF" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_FLANN, [test "$HAVE_PKG_FLANN" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_GDAL, [test "$HAVE_PKG_GDAL" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_HDF, [test "$HAVE_PKG_HDF" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_JPEG, [test "$HAVE_PKG_JPEG" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_LAPACK, [test "$HAVE_PKG_LAPACK" = "yes"])
 AM_CONDITIONAL(HAVE_PKG_LIBKML, [test "$HAVE_PKG_LIBKML" = "yes"])
 AM_CONDITIONAL(HAVE_PKG_OPENCV, [test "$HAVE_PKG_OPENCV" = "yes"])
-AM_CONDITIONAL(HAVE_PKG_FLANN, [test "$HAVE_PKG_FLANN" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_OPENEXR, [test "$HAVE_PKG_OPENEXR" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_OPENJPEG, [test "$HAVE_PKG_OPENJPEG" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_PNG, [test "$HAVE_PKG_PNG" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_PROTOBUF, [test "$HAVE_PKG_PROTOBUF" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_RABBITMQ_C, [test "$HAVE_PKG_RABBITMQ_C" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_TIFF, [test "$HAVE_PKG_TIFF" = "yes"])
+AM_CONDITIONAL(HAVE_PKG_ZEROMQ, [test "$HAVE_PKG_ZEROMQ" = "yes"])
 AM_CONDITIONAL(HAVE_PYTHON, [test "$HAVE_PYTHON" = "yes"])
 
 

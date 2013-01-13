@@ -415,3 +415,7 @@ TEST( DiskImageResource, PNGComments ) {
     EXPECT_EQ( "Cow", read_rsrc.get_comment_value( 1 ) );
   }
 }
+
+TEST( DiskImageResource, OpenJPEG ) {
+  DiskImageResourceOpenJPEG rsrc("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
+}

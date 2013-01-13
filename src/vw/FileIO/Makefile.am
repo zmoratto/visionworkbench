@@ -54,6 +54,11 @@ gdal_headers = DiskImageResourceGDAL.h  MemoryImageResourceGDAL.h  GdalIO.h
 gdal_sources = DiskImageResourceGDAL.cc MemoryImageResourceGDAL.cc GdalIO.cc
 endif
 
+if HAVE_PKG_OPENJPEG
+openjpeg_headers = DiskImageResourceOpenJPEG.h
+openjpeg_sources = DiskImageResourceOpenJPEG.cc
+endif
+
 include_HEADERS = \
   DiskImageResource.h \
   DiskImageResourcePBM.h \
@@ -67,6 +72,7 @@ include_HEADERS = \
   $(hdf_headers) \
   $(jpeg_headers) \
   $(openexr_headers) \
+  $(openjpeg_headers) \
   $(png_headers) \
   $(tiff_headers)
 
@@ -82,6 +88,7 @@ libvwFileIO_la_SOURCES = \
   $(hdf_sources) \
   $(jpeg_sources) \
   $(openexr_sources) \
+  $(openjpeg_sources) \
   $(png_sources) \
   $(tiff_sources)
 

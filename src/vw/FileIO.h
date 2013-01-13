@@ -45,6 +45,10 @@
 #include <vw/FileIO/DiskImageResourceOpenEXR.h>
 #endif
 
+#if defined(VW_HAVE_PKG_OPENJPEG) && VW_HAVE_PKG_OPENJPEG==1
+#include <vw/FileIO/DiskImageResourceOpenJPEG.h>
+#endif
+
 #if defined(VW_HAVE_PKG_GDAL) && VW_HAVE_PKG_GDAL==1
 #include <vw/FileIO/DiskImageResourceGDAL.h>
 #endif

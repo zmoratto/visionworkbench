@@ -86,7 +86,7 @@ namespace vw {
     /// significantly faster decoding since fewer pixels need to be
     /// processed and a simpler IDCT method can be used.
     void set_subsample_factor(int subsample_factor) {
-      // Cloes and reopen the file with the new subsampling factor
+      // Close and reopen the file with the new subsampling factor
       flush();
       open(m_filename, subsample_factor);
     }
