@@ -65,6 +65,10 @@ namespace fs = boost::filesystem;
 #include <vw/FileIO/DiskImageResourceGDAL.h>
 #endif
 
+#if defined(VW_HAVE_PKG_OPENJPEG) && VW_HAVE_PKG_OPENJPEG==1
+#include <vw/FileIO/DiskImageResourceOpenJPEG.h>
+#endif
+
 #include <vw/FileIO/DiskImageResource_internal.h>
 
 static void register_default_file_types_impl();
@@ -181,6 +185,10 @@ static void register_default_file_types_impl() {
     REGISTER(".jp2", GDAL)
   if (vw::DiskImageResourceGDAL::gdal_has_support(".j2k"))
     REGISTER(".j2k", GDAL)
+#endif
+
+#if defined(VW_HAVE_PKG_OPENJPEG) && VW_HAVE_PKG_OPENJPEG==1
+      REGISTER(".jp2", OpenJPEG)
 #endif
 
 // This is a little hackish but it makes it so libtiff acts as a proper fallback

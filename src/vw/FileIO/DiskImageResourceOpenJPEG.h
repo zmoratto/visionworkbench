@@ -43,7 +43,7 @@ namespace vw {
       create( filename, format );
     }
 
-    virtual ~DiskImageResourceOpenJPEG() {};
+    virtual ~DiskImageResourceOpenJPEG() {}
 
     /// Returns the type of disk image resource
     static std::string type_static() { return "OpenJPEG"; }

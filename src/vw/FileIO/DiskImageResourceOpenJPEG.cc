@@ -33,15 +33,17 @@ namespace vw {
     opj_stream_t* l_stream;
     opj_codec_t* l_codec;
     opj_codestream_index_t* cstr_index;
+    opj_codestream_info_v2_t* codec_info;
 
     DiskImageResourceInfoOpenJPEG() : fsrc(NULL), image(NULL), l_stream(NULL), l_codec(NULL), cstr_index(NULL) {
       // set decoding parameters to default values
       opj_set_default_decoder_parameters( &parameters );
       parameters.m_verbose = true;
-      std::cout << "Cp reduce: " << parameters.cp_reduce << " " << parameters.cp_layer << std::endl;
     }
 
     ~DiskImageResourceInfoOpenJPEG() {
+      if ( codec_info )
+        opj_destroy_cstr_info( &codec_info );
       if ( l_stream )
         opj_stream_destroy( l_stream );
       if ( fsrc )
@@ -57,21 +59,21 @@ namespace vw {
 // Handle OpenJPEG warning condition by outputting message text at the
 // Warning verbosity level.
 static void openjpeg_warning_handler( const char* msg, void *client_data ) {
-  //(void)client_data;
+  (void)client_data;
   VW_OUT( WarningMessage, "fileio") << "DiskImageResourceOpenJPEG Warning: " << msg << std::endl;
 }
 
 // Handle OpenJPEG info condition by outputting message text at the
 // DebugMessage verbosity level.
 static void openjpeg_info_handler( const char* msg, void *client_data ) {
-  //(void)client_data;
+  (void)client_data;
   VW_OUT( DebugMessage, "fileio") << "DiskImageResourceOpenJPEG Info: " << msg << std::endl;
 }
 
 // Handle OpenJPEG error conditions by writing the error and hope the calling
 // program checks the return value for the function
 static void openjpeg_error_handler( const char* msg, void *client_data ) {
-  //(void)client_data;
+  (void)client_data;
   VW_OUT( ErrorMessage, "fileio") << "DiskImageResourceOpenJPEG Error: " << msg << std::endl;
 }
 
@@ -90,23 +92,26 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
   // Mutexing access to the stream .. might be or ticket for parallelization
   // the 1 means read only
   m_info->l_stream = opj_stream_create_default_file_stream(m_info->fsrc,1);
+  VW_ASSERT( m_info->l_stream,
+             ArgumentErr() << "Failed to create stream from file\n" );
 
   OPJ_VDM << "Decode format: " << m_info->parameters.decod_format << std::endl;
 
   m_info->l_codec = opj_create_decompress( OPJ_CODEC_JP2 );
+  VW_ASSERT( m_info->l_codec,
+             ArgumentErr() << "Failed to create codec.\n" );
 
   // Jack in our loggers. Are these thread safe?
   opj_set_info_handler( m_info->l_codec, openjpeg_info_handler, 00);
   opj_set_warning_handler( m_info->l_codec, openjpeg_warning_handler, 00);
   opj_set_error_handler( m_info->l_codec, openjpeg_error_handler, 00);
 
-  OPJ_VDM << "Hit" << std::endl;
-
   // Setup the decoder using the default parameters
   VW_ASSERT( opj_setup_decoder( m_info->l_codec, &m_info->parameters ),
              vw::ArgumentErr() << "DiskImageResourceOpenJPEG: Failed to setup the decoder.\n" );
 
-  OPJ_VDM << "Hit" << std::endl;
+  printf("Lstream %p Lcodec %p Image %p\n", m_info->l_stream, m_info->l_codec,
+         m_info->image );
 
   // Read the main header of the codestream and if necessary the JP2 boxes
   VW_ASSERT( opj_read_header( m_info->l_stream, m_info->l_codec, &(m_info->image) ),
@@ -126,10 +131,34 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
             << "  x0y0 " << ptr->x0 << " " << ptr->y0 << std::endl
             << "  prec " << ptr->prec << std::endl
             << "  bpp  " << ptr->bpp << std::endl
-            << "  sgnd " << ptr->sgnd << std::endl;
+            << "  sgnd " << ptr->sgnd << std::endl
+            << "  data " << ptr->data << std::endl;
   }
 
+  // Read codec stream information to see if it tells me tile information
+  m_info->codec_info = opj_get_cstr_info( m_info->l_codec );
+  OPJ_VDM << "Tile origin: " << m_info->codec_info->tx0 << " "
+          << m_info->codec_info->ty0 << std::endl;
+  OPJ_VDM << "Tile size:   " << m_info->codec_info->tdx << " "
+          << m_info->codec_info->tdy << std::endl;
+  OPJ_VDM << "Number of tiles: " << m_info->codec_info->tw << " "
+          << m_info->codec_info->th << std::endl;
+  OPJ_VDM << "Number of components: " << m_info->codec_info->nbcomps
+          << std::endl;
 
+  // Tell VW about the image format
+  m_format.cols = m_info->image->x1;
+  m_format.rows = m_info->image->y1;
+  m_format.planes = 1;
+
+  // Need to try and support multispectral in the future.
+
+  if ( m_info->image->comps->sgnd ) {
+    m_format.channel_type = VW_CHANNEL_INT16;
+  } else {
+    m_format.channel_type = VW_CHANNEL_UINT16;
+  }
+  m_format.pixel_format = VW_PIXEL_GRAY;
 }
 
 void DiskImageResourceOpenJPEG::create( std::string const& filename,
@@ -140,6 +169,46 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
   VW_ASSERT( int(dest.format.cols)==bbox.width() && int(dest.format.rows)==bbox.height(),
              ArgumentErr() << "DiskImageResourceTIFF (read) Error: Destination buffer has wrong dimensions!" );
 
+  Vector2i tile_size = block_read_size();
+
+  // See if they are requesting a tile
+  if ( !(bbox.min().x() % tile_size.x()) &&
+       !(bbox.min().y() % tile_size.y()) ) {
+    Vector2i index = elem_quot(bbox.min(), tile_size);
+    Vector2i expect_tile_size = tile_size;
+    if ( index.x() == m_info->codec_info->tw - 1 )
+      expect_tile_size.x() = m_info->image->x0 % (index.x() * tile_size.x() );
+    if ( index.y() == m_info->codec_info->th - 1 )
+      expect_tile_size.y() = m_info->image->y0 % (index.y() * tile_size.y() );
+
+    if ( bbox.size() == expect_tile_size ) {
+      // Call for decoding of a single tile!
+      opj_image_t* image_data = NULL;
+      OPJ_VDM << "Decoding tile at " << bbox << ": Which should be tile: " << index.x() + index.y() * m_info->codec_info->tw << std::endl;
+      OPJ_VDM << m_info << " " << m_info->l_codec << " " << m_info->l_stream << " " << image_data << " " << m_info->codec_info << std::endl;
+      VW_ASSERT( opj_get_decoded_tile( m_info->l_codec, m_info->l_stream,
+                                       image_data, index.x() + index.y() * m_info->codec_info->tw ),
+                 IOErr() << "Failed to decoded tile index: " << index.x() + index.y() * m_info->codec_info->tw );
+      OPJ_VDM << "Finished!" << std::endl << std::flush;
+
+      // Give the image buffer ownership of the data
+      ImageBuffer src_buf;
+      src_buf.format = m_format;
+      src_buf.format.cols = bbox.width();
+      src_buf.format.rows = bbox.height();
+      src_buf.data = image_data->comps[0].data;
+      src_buf.cstride = 4; // Always 4 bytes?
+      src_buf.rstride = src_buf.cstride * image_data->comps[0].w;
+      src_buf.pstride = src_buf.rstride * image_data->comps[0].h;
+      convert( dest, src_buf, m_rescale);
+
+      opj_image_destroy( image_data );
+      return;
+    }
+  }
+
+  // They are requesting something odd ... no worries just a different api call.
+    
 }
 
 void DiskImageResourceOpenJPEG::write( ImageBuffer const& src, BBox2i const& bbox ) {
@@ -168,7 +237,10 @@ void DiskImageResourceOpenJPEG::set_block_write_size( const Vector2i& ) {
 }
 
 Vector2i DiskImageResourceOpenJPEG::block_read_size() const {
-  return Vector2i(256,256);
+  VW_ASSERT( m_info, IOErr() << "DiskImageResourceOpenJPEG: File not opened.\n" );
+  VW_ASSERT( m_info->codec_info,
+             IOErr() << "DiskImageResourceOpenJPEG: Codec information not loaded.\n" );
+  return Vector2i(m_info->codec_info->tdx, m_info->codec_info->tdy);
 }
 
 #undef OPJ_VDM
