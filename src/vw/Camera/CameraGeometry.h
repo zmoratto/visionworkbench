@@ -37,7 +37,7 @@
 namespace vw {
 
 // Forward Declare
-namespace ip { class InterestPoint; }
+namespace ip { struct InterestPoint; }
 
 namespace camera {
 

@@ -111,8 +111,7 @@ namespace vw { namespace cartography {
                               boost::shared_ptr<DiskImageResource> dem_rsrc,
                               vw::Vector2i image_size) :
     m_cam(cam), m_image_georef(image_georef), m_dem_georef(dem_georef),
-    m_dem_rsrc(dem_rsrc), m_dem(dem_rsrc), m_image_size(image_size),
-    m_has_nodata(false),
+    m_dem(dem_rsrc), m_image_size(image_size), m_has_nodata(false),
     m_nodata(std::numeric_limits<double>::quiet_NaN() ){
     m_has_nodata = dem_rsrc->has_nodata_read();
     if (m_has_nodata) m_nodata = dem_rsrc->nodata_read();
