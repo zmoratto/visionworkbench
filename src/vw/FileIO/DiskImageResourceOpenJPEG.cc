@@ -35,7 +35,7 @@ namespace vw {
     opj_codestream_index_t* cstr_index;
     opj_codestream_info_v2_t* codec_info;
 
-    DiskImageResourceInfoOpenJPEG() : fsrc(NULL), image(NULL), l_stream(NULL), l_codec(NULL), cstr_index(NULL) {
+    DiskImageResourceInfoOpenJPEG() : fsrc(NULL), image(NULL), l_stream(NULL), l_codec(NULL), cstr_index(NULL), codec_info(NULL) {
       // set decoding parameters to default values
       opj_set_default_decoder_parameters( &parameters );
       parameters.m_verbose = true;
