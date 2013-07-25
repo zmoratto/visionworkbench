@@ -180,15 +180,16 @@ static void register_default_file_types_impl() {
     REGISTER(".jpeg", GDAL)
 #endif
 
-#if defined(VW_HAVE_PKG_GDAL) && VW_HAVE_PKG_GDAL==1
-  if (vw::DiskImageResourceGDAL::gdal_has_support(".jp2"))
-    REGISTER(".jp2", GDAL)
-  if (vw::DiskImageResourceGDAL::gdal_has_support(".j2k"))
-    REGISTER(".j2k", GDAL)
-#endif
+// #if defined(VW_HAVE_PKG_GDAL) && VW_HAVE_PKG_GDAL==1
+//   if (vw::DiskImageResourceGDAL::gdal_has_support(".jp2"))
+//     REGISTER(".jp2", GDAL)
+//   if (vw::DiskImageResourceGDAL::gdal_has_support(".j2k"))
+//     REGISTER(".j2k", GDAL)
+// #endif
 
 #if defined(VW_HAVE_PKG_OPENJPEG) && VW_HAVE_PKG_OPENJPEG==1
       REGISTER(".jp2", OpenJPEG)
+      REGISTER(".j2k", OpenJPEG)
 #endif
 
 // This is a little hackish but it makes it so libtiff acts as a proper fallback

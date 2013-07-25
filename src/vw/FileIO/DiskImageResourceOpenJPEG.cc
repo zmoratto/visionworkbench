@@ -21,7 +21,7 @@
 
 #include <vw/FileIO/DiskImageResourceOpenJPEG.h>
 
-#define OPJ_VDM if(::vw::vw_log().is_enabled(vw::VerboseDebugMessage,"fileio")) ::vw::vw_out(vw::VerboseDebugMessage,"fileio")
+#define OPJ_VDM if(::vw::vw_log().is_enabled(vw::VerboseDebugMessage,"fileio")) ::vw::vw_out(vw::VerboseDebugMessage,"fileio") << "DiskImageResourceOpenJPEG: "
 
 using namespace vw;
 
@@ -97,7 +97,8 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
 
   OPJ_VDM << "Decode format: " << m_info->parameters.decod_format << std::endl;
 
-  m_info->l_codec = opj_create_decompress( OPJ_CODEC_JP2 );
+  //m_info->l_codec = opj_create_decompress( OPJ_CODEC_JP2 );
+  m_info->l_codec = opj_create_decompress( OPJ_CODEC_J2K );
   VW_ASSERT( m_info->l_codec,
              ArgumentErr() << "Failed to create codec.\n" );
 
@@ -110,14 +111,9 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
   VW_ASSERT( opj_setup_decoder( m_info->l_codec, &m_info->parameters ),
              vw::ArgumentErr() << "DiskImageResourceOpenJPEG: Failed to setup the decoder.\n" );
 
-  printf("Lstream %p Lcodec %p Image %p\n", m_info->l_stream, m_info->l_codec,
-         m_info->image );
-
   // Read the main header of the codestream and if necessary the JP2 boxes
   VW_ASSERT( opj_read_header( m_info->l_stream, m_info->l_codec, &(m_info->image) ),
              vw::ArgumentErr() << "DiskImageResourceOpenJPEG: Failed to read the header.\n" );
-
-
 
   // Debug drop some information about the JP2
   OPJ_VDM << "Offset of reference grid: " << m_info->image->x0 << " " << m_info->image->y0 << std::endl;
@@ -162,7 +158,7 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
 }
 
 void DiskImageResourceOpenJPEG::create( std::string const& filename,
-                                            ImageFormat const& format ) {
+                                        ImageFormat const& format ) {
 }
 
 void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbox ) const {
@@ -171,23 +167,20 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
 
   Vector2i tile_size = block_read_size();
 
-  // See if they are requesting a tile
+  opj_image_t* tile_image_data = NULL;
+  VW_ASSERT( opj_read_header( m_info->l_codec, m_info->l_stream, &tile_image_data ),
+             IOErr() << "Failed to reparse image header." );
+
   if ( !(bbox.min().x() % tile_size.x()) &&
        !(bbox.min().y() % tile_size.y()) ) {
+    // See if they are requesting on a tile boundary
     Vector2i index = elem_quot(bbox.min(), tile_size);
-    Vector2i expect_tile_size = tile_size;
-    if ( index.x() == m_info->codec_info->tw - 1 )
-      expect_tile_size.x() = m_info->image->x0 % (index.x() * tile_size.x() );
-    if ( index.y() == m_info->codec_info->th - 1 )
-      expect_tile_size.y() = m_info->image->y0 % (index.y() * tile_size.y() );
 
-    if ( bbox.size() == expect_tile_size ) {
+    if ( bbox.size() == tile_size ) {
       // Call for decoding of a single tile!
-      opj_image_t* image_data = NULL;
       OPJ_VDM << "Decoding tile at " << bbox << ": Which should be tile: " << index.x() + index.y() * m_info->codec_info->tw << std::endl;
-      OPJ_VDM << m_info << " " << m_info->l_codec << " " << m_info->l_stream << " " << image_data << " " << m_info->codec_info << std::endl;
-      VW_ASSERT( opj_get_decoded_tile( m_info->l_codec, m_info->l_stream,
-                                       image_data, index.x() + index.y() * m_info->codec_info->tw ),
+      VW_ASSERT( opj_get_decoded_tile( m_info->l_codec, m_info->l_stream, tile_image_data,
+                                       index.x() + index.y() * m_info->codec_info->tw ),
                  IOErr() << "Failed to decoded tile index: " << index.x() + index.y() * m_info->codec_info->tw );
       OPJ_VDM << "Finished!" << std::endl << std::flush;
 
@@ -196,19 +189,21 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
       src_buf.format = m_format;
       src_buf.format.cols = bbox.width();
       src_buf.format.rows = bbox.height();
-      src_buf.data = image_data->comps[0].data;
+      src_buf.data = tile_image_data->comps[0].data;
       src_buf.cstride = 4; // Always 4 bytes?
-      src_buf.rstride = src_buf.cstride * image_data->comps[0].w;
-      src_buf.pstride = src_buf.rstride * image_data->comps[0].h;
+      src_buf.rstride = src_buf.cstride * tile_image_data->comps[0].w;
+      src_buf.pstride = src_buf.rstride * tile_image_data->comps[0].h;
       convert( dest, src_buf, m_rescale);
 
-      opj_image_destroy( image_data );
+      opj_image_destroy( tile_image_data );
       return;
     }
   }
 
   // They are requesting something odd ... no worries just a different api call.
-    
+  vw_throw( vw::NoImplErr() << "DiskImageResourceOpenJPEG: Failed to handle non tile read request" );
+
+  return;
 }
 
 void DiskImageResourceOpenJPEG::write( ImageBuffer const& src, BBox2i const& bbox ) {
@@ -216,7 +211,7 @@ void DiskImageResourceOpenJPEG::write( ImageBuffer const& src, BBox2i const& bbo
 }
 
 void DiskImageResourceOpenJPEG::flush() {
-  
+
 }
 
 DiskImageResource* vw::DiskImageResourceOpenJPEG::construct_open( std::string const& filename ) {
@@ -224,7 +219,7 @@ DiskImageResource* vw::DiskImageResourceOpenJPEG::construct_open( std::string co
 }
 
 DiskImageResource* vw::DiskImageResourceOpenJPEG::construct_create( std::string const& filename,
-                                                                        ImageFormat const& format ) {
+                                                                    ImageFormat const& format ) {
   return new DiskImageResourceOpenJPEG( filename, format );
 }
 

@@ -418,6 +418,7 @@ TEST( DiskImageResource, PNGComments ) {
 
 TEST( DiskImageResource, OpenJPEG ) {
   //DiskImageResourceOpenJPEG rsrc("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
-  DiskImageView<PixelGray<uint16> > jp2("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
-  write_image( "test_jp2.png", crop(jp2, 0, 0, 4096, 4096) );
+  //DiskImageView<PixelGray<uint16> > jp2("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
+  DiskImageView<PixelGray<uint16> > jp2("/Users/zmoratto/testing/jp2_test/Cevennes1.j2k");
+  write_image( "test_jp2.png", jp2 );
 }
