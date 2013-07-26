@@ -27,7 +27,6 @@
 #define __VW_IMAGE_IMAGERESOURCEVIEW_H__
 
 #include <vw/Core/Cache.h>
-#include <vw/Core/Thread.h>
 #include <vw/Image/ImageViewBase.h>
 #include <vw/Image/Manipulation.h>
 #include <vw/Image/ImageIO.h>
@@ -48,7 +47,7 @@ namespace vw {
 
     /// Constructs an ImageResourceView of the given resource.
     ImageResourceView( boost::shared_ptr<SrcImageResource> resource )
-      : m_rsrc( resource ), m_planes( m_rsrc->planes() ), m_rsrc_mutex( new Mutex )
+      : m_rsrc( resource ), m_planes( m_rsrc->planes() )
     {
       initialize();
     }
@@ -57,7 +56,7 @@ namespace vw {
     /// ownership of the resource object (i.e. deletes it when it's
     /// done using it).
     ImageResourceView( SrcImageResource *resource )
-      : m_rsrc( resource ), m_planes( m_rsrc->planes() ), m_rsrc_mutex( new Mutex )
+      : m_rsrc( resource ), m_planes( m_rsrc->planes() )
     {
       initialize();
     }
@@ -75,7 +74,6 @@ namespace vw {
 
     /// Returns the pixel at the given position in the given plane.
     result_type operator()( int32 x, int32 y, int32 plane=0 ) const {
-      Mutex::Lock lock(*m_rsrc_mutex);
 #if VW_DEBUG_LEVEL > 1
       VW_OUT(VerboseDebugMessage, "image") << "ImageResourceView rasterizing pixel (" << x << "," << y << ")" << std::endl;
 #endif
@@ -96,7 +94,6 @@ namespace vw {
       return CropView<ImageView<PixelT> >( buf, BBox2i(-bbox.min().x(),-bbox.min().y(),cols(),rows()) );
     }
     template <class DestT> inline void rasterize( DestT const& dest, BBox2i const& bbox ) const {
-      Mutex::Lock lock(*m_rsrc_mutex);
 #if VW_DEBUG_LEVEL > 1
       VW_OUT(VerboseDebugMessage, "image") << "ImageResourceView rasterizing bbox " << bbox << std::endl;
 #endif
@@ -122,7 +119,6 @@ namespace vw {
 
     boost::shared_ptr<SrcImageResource> m_rsrc;
     int32 m_planes;
-    boost::shared_ptr<Mutex> m_rsrc_mutex;
   };
 
 } // namespace vw
