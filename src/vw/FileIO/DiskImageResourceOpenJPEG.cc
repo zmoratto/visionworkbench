@@ -77,10 +77,15 @@ static void openjpeg_error_handler( const char* msg, void *client_data ) {
   VW_OUT( ErrorMessage, "fileio") << "DiskImageResourceOpenJPEG Error: " << msg << std::endl;
 }
 
+vw::DiskImageResourceOpenJPEG::~DiskImageResourceOpenJPEG() {
+  if ( m_info )
+    delete m_info;
+}
+
 void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
                                           int subsample_factor ) {
 
-  m_info.reset( new DiskImageResourceInfoOpenJPEG() );
+  if (!m_info) m_info = new DiskImageResourceInfoOpenJPEG();
 
   OPJ_VDM << "Trying to open \"" << filename << "\"" << std::endl;
 
@@ -97,8 +102,8 @@ void vw::DiskImageResourceOpenJPEG::open( std::string const& filename,
 
   OPJ_VDM << "Decode format: " << m_info->parameters.decod_format << std::endl;
 
-  //m_info->l_codec = opj_create_decompress( OPJ_CODEC_JP2 );
-  m_info->l_codec = opj_create_decompress( OPJ_CODEC_J2K );
+  m_info->l_codec = opj_create_decompress( OPJ_CODEC_JP2 );
+  //m_info->l_codec = opj_create_decompress( OPJ_CODEC_J2K );
   VW_ASSERT( m_info->l_codec,
              ArgumentErr() << "Failed to create codec.\n" );
 
@@ -167,10 +172,6 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
 
   Vector2i tile_size = block_read_size();
 
-  opj_image_t* tile_image_data = NULL;
-  VW_ASSERT( opj_read_header( m_info->l_codec, m_info->l_stream, &tile_image_data ),
-             IOErr() << "Failed to reparse image header." );
-
   if ( !(bbox.min().x() % tile_size.x()) &&
        !(bbox.min().y() % tile_size.y()) ) {
     // See if they are requesting on a tile boundary
@@ -179,7 +180,7 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
     if ( bbox.size() == tile_size ) {
       // Call for decoding of a single tile!
       OPJ_VDM << "Decoding tile at " << bbox << ": Which should be tile: " << index.x() + index.y() * m_info->codec_info->tw << std::endl;
-      VW_ASSERT( opj_get_decoded_tile( m_info->l_codec, m_info->l_stream, tile_image_data,
+      VW_ASSERT( opj_get_decoded_tile( m_info->l_codec, m_info->l_stream, m_info->image,
                                        index.x() + index.y() * m_info->codec_info->tw ),
                  IOErr() << "Failed to decoded tile index: " << index.x() + index.y() * m_info->codec_info->tw );
       OPJ_VDM << "Finished!" << std::endl << std::flush;
@@ -189,13 +190,12 @@ void DiskImageResourceOpenJPEG::read( ImageBuffer const& dest, BBox2i const& bbo
       src_buf.format = m_format;
       src_buf.format.cols = bbox.width();
       src_buf.format.rows = bbox.height();
-      src_buf.data = tile_image_data->comps[0].data;
+      src_buf.data = m_info->image->comps[0].data;
       src_buf.cstride = 4; // Always 4 bytes?
-      src_buf.rstride = src_buf.cstride * tile_image_data->comps[0].w;
-      src_buf.pstride = src_buf.rstride * tile_image_data->comps[0].h;
+      src_buf.rstride = src_buf.cstride * m_info->image->comps[0].w;
+      src_buf.pstride = src_buf.rstride * m_info->image->comps[0].h;
       convert( dest, src_buf, m_rescale);
 
-      opj_image_destroy( tile_image_data );
       return;
     }
   }

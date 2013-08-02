@@ -22,8 +22,11 @@
 #include <vw/FileIO/DiskImageResource_internal.h>
 #include <vw/Image/PixelTypes.h>
 #include <vw/Image/ImageView.h>
+#include <vw/Image/ImageViewRef.h>
 #include <vw/config.h>
 #include <test/Helpers.h>
+
+#include <vw/FileIO/DiskImageResourceOpenJPEG.h>
 
 using namespace vw;
 using namespace vw::internal;
@@ -417,8 +420,13 @@ TEST( DiskImageResource, PNGComments ) {
 }
 
 TEST( DiskImageResource, OpenJPEG ) {
+  vw_settings().set_default_num_threads(8);
+
   //DiskImageResourceOpenJPEG rsrc("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
   //DiskImageView<PixelGray<uint16> > jp2("/Users/zmoratto/Data/Earth/Pleiades_StereoTest/PRIMARY_TRISTEREO_BUNDLE/IMG_PHR1A_P_001/IMG_PHR1A_P_201202250026276_SEN_IPU_20120509_2001-006_R1C1.JP2");
-  DiskImageView<PixelGray<uint16> > jp2("/Users/zmoratto/testing/jp2_test/Cevennes1.j2k");
-  write_image( "test_jp2.png", jp2 );
+  boost::shared_ptr<DiskImageResource> disk_rsrc( DiskImageResourceOpenJPEG::construct_open("/home/zmoratto/raid/asp_test_data/Earth/Alaska_Ikonos/WV01_20101215_102001001055C800_10200100118A8F00/WV01_10DEC151636563-P1BS-10200100118A8F00.jp2") );
+  DiskImageView<PixelGray<uint16> > jp2(disk_rsrc);
+  ImageView<PixelGray<uint16> > jp2_crop = crop(jp2, 0, 0, 4096, 1500);
+
+  write_image( "test_jp2.tif", jp2_crop, TerminalProgressCallback("","") );
 }

@@ -33,17 +33,17 @@ namespace vw {
   public:
     DiskImageResourceOpenJPEG( std::string const& filename,
                                int subsample_factor = 1 ) :
-      DiskImageResource( filename ) {
+      DiskImageResource( filename ), m_info(NULL) {
       open( filename, subsample_factor );
     }
 
     DiskImageResourceOpenJPEG( std::string const& filename,
                                ImageFormat const& format ) :
-      DiskImageResource( filename ) {
+      DiskImageResource( filename ), m_info(NULL) {
       create( filename, format );
     }
 
-    virtual ~DiskImageResourceOpenJPEG() {}
+    virtual ~DiskImageResourceOpenJPEG();
 
     /// Returns the type of disk image resource
     static std::string type_static() { return "OpenJPEG"; }
@@ -76,7 +76,7 @@ namespace vw {
     virtual Vector2i block_read_size() const;
 
   private:
-    boost::shared_ptr<DiskImageResourceInfoOpenJPEG> m_info;
+    DiskImageResourceInfoOpenJPEG* m_info;
   };
 
 }
